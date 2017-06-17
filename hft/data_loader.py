@@ -25,7 +25,9 @@ def get_filenames(product, yyyymmdd):
 
 def process_raw_table(px):
     px.columns = COLUMNS
+    px['spread'] = px['ask'] - px['bid']
     px['mid'] = 0.5 * (px['b1']+px['s1'])
+    px['bpsreturn'] = 1e4 * (px['mid'] - px['mid'].shift(1)) / px['mid'].shift(1)
     px['dt'] = px['date'] + ' ' + px['time']
     px['dt'] = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S') for x in px['dt']]
     px.set_index('dt', inplace=True)
