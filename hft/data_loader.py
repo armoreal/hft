@@ -1,3 +1,7 @@
+"""
+Data Loading Functions
+"""
+
 import os
 import logging
 import pandas as pd
@@ -6,7 +10,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 DATA_PATH = 'C:\\Users\\Jingwei\\Documents\\hft\\SpRawFutureTick'
-COLUMNS = ['date', 'time', 'price', 'qty', 'total', 'outstanding_change',
+COLUMNS = ['date', 'time', 'price', 'qty', 'volume', 'outstanding_change',
            'b1', 'b1_size', 'b2', 'b2_size', 'b3', 'b3_size',
            's1', 's1_size', 's2', 's2_size', 's3', 's3_size', 'bs']
 ENCODING = 'gb18030'
@@ -27,7 +31,7 @@ def process_raw_table(px):
     px.columns = COLUMNS
     px['spread'] = px['s1'] - px['b1']
     px['mid'] = 0.5 * (px['b1']+px['s1'])
-    px['bpsreturn'] = 1e4 * (px['mid'] - px['mid'].shift(1)) / px['mid'].shift(1)
+    px['return'] = (px['mid'] - px['mid'].shift(1)) / px['mid'].shift(1)
     px['dt'] = px['date'] + ' ' + px['time']
     px['dt'] = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S') for x in px['dt']]
     px.set_index('dt', inplace=True)
