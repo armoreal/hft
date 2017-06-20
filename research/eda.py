@@ -11,7 +11,7 @@ product = 'cu'  # switch between cu and zn
 # some random day
 # ---------------
 
-yyyymmdd = '20131226'
+yyyymmdd = '20131015'
 px = dl.load_active_contract(product, yyyymmdd)
 px.price.plot()
 px[['price', 'mid']].plot()
@@ -25,7 +25,7 @@ pxall = dl.load_active_contract_multiple_dates(product, dates)
 # daily aggregate
 # we are more interested in intraday behavior
 
-daily_funs = {'price': 'last', 'volume': 'last', 'outstanding_change': 'sum', 'spread': 'mean', 'mid': 'mean'}
+daily_funs = {'price': 'last', 'volume': 'last', 'open_interest': 'sum', 'spread': 'mean', 'mid': 'mean'}
 daily_px = pxall.groupby('date').agg(daily_funs)
 daily_px.volume.plot(title='volume')
 daily_px.price.plot(title='close')
@@ -39,8 +39,8 @@ plt.plot(daily_px.volume, daily_px.spread, 'o')
 
 pxall['hour'] = pxall.index.hour
 pxall['minute'] = pxall.index.minute + 60 * pxall.index.hour
-funs = {'mid': np.mean, 'qty': np.sum, 'spread': np.mean, 'outstanding_change': np.sum,
-        'return': lambda x: np.nansum(x*x)}
+funs = {'mid': np.mean, 'qty': np.sum, 'spread': np.mean, 'open_interest': np.sum,
+        'b1_size': np.mean, 's1_size': np.mean, 'return': lambda x: np.nansum(x*x)}
 rename_dict = {'return': 'realized_vol'}
 
 hourly_px = utils.aggregate(pxall, 'hour', funs, rename_dict)
@@ -50,4 +50,6 @@ minutely_px['n_trades'].plot(title='# trades')
 minutely_px['qty'].plot(title='volume')
 minutely_px['spread'].plot(title='spread')
 minutely_px['realized_vol'].plot(title='realized volatility')
+minutely_px[['b1_size', 's1_size']].plot()
+(minutely_px.b1_size - minutely_px.s1_size).plot(title='b1_size - s1_size')
 plt.plot(minutely_px.spread, minutely_px.realized_vol, 'o')
