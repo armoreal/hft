@@ -13,6 +13,7 @@ DATA_PATH = 'C:\\Users\\Jingwei\\Documents\\hft\\SpRawFutureTick'
 COLUMNS = ['date', 'time', 'price', 'qty', 'volume', 'open_interest',
            'b1', 'b1_size', 'b2', 'b2_size', 'b3', 'b3_size',
            's1', 's1_size', 's2', 's2_size', 's3', 's3_size', 'side']
+COLUMNS_TO_DROP = ['b2', 'b2_size', 'b3', 'b3_size', 's2', 's2_size', 's3', 's3_size']
 ENCODING = 'gb18030'
 
 
@@ -35,6 +36,8 @@ def process_raw_table(px):
     px['dt'] = px['date'] + ' ' + px['time']
     px['dt'] = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S') for x in px['dt']]
     px.set_index('dt', inplace=True)
+    px['second'] = (px.index.hour-9)*3600 + px.index.minute*60 + px.index.second
+    px.drop(COLUMNS_TO_DROP, axis=1, inplace=True)
     return px
 
 
