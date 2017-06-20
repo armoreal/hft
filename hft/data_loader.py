@@ -10,9 +10,9 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 DATA_PATH = 'C:\\Users\\Jingwei\\Documents\\hft\\SpRawFutureTick'
-COLUMNS = ['date', 'time', 'price', 'qty', 'volume', 'outstanding_change',
+COLUMNS = ['date', 'time', 'price', 'qty', 'volume', 'open_interest',
            'b1', 'b1_size', 'b2', 'b2_size', 'b3', 'b3_size',
-           's1', 's1_size', 's2', 's2_size', 's3', 's3_size', 'bs']
+           's1', 's1_size', 's2', 's2_size', 's3', 's3_size', 'side']
 ENCODING = 'gb18030'
 
 
