@@ -37,6 +37,8 @@ def process_raw_table(px):
     px['dt'] = [datetime.strptime(x, '%Y-%m-%d %H:%M:%S') for x in px['dt']]
     px.set_index('dt', inplace=True)
     px['second'] = (px.index.hour-9)*3600 + px.index.minute*60 + px.index.second
+    half_second_index = px.second == px.second.shift(-1)
+    px.loc[half_second_index, 'second'] = px.loc[half_second_index, 'second'] - 0.5
     px.drop(COLUMNS_TO_DROP, axis=1, inplace=True)
     return px
 
