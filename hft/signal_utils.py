@@ -4,8 +4,11 @@ Utility Functions of Constructing Signals for Research Purpose
 
 import os
 import json
+import logging
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 with open(os.path.join('config', 'signal.json')) as signal_config_file:
     signal_config = json.load(signal_config_file)
@@ -62,7 +65,17 @@ def period_return(px, seconds):
     px = pd.merge(px, px_copy, on=shift_second_col_name, how='left')
     shift_return_col_name = 'return'+str(seconds)
     if seconds > 0:
-        px[shift_return_col_name] = (px[shift_mid_col_name] - px.mid) / px.mid
+        px['price_change'] = px[shift_mid_col_name] - px.mid
+        px[shift_return_col_name] = px['price_change'] / px.mid
     else:
-        px[shift_return_col_name] = (px.mid - px[shift_mid_col_name]) / px[shift_mid_col_name]
+        px['price_change'] = px.mid - px[shift_mid_col_name]
+        px[shift_return_col_name] = px['price_change'] / px[shift_mid_col_name]
     return px
+
+
+def signal_on_multiple_dates(pxall, fun):
+    dates = set(pxall.date)
+    logger.info('Computing signal from %s to %s', dates[0], dates[-1])
+    px_list = [fun(pxall[pxall.date == x].copy()) for x in dates]
+    px_enrich = pd.concat(px_list)
+    return px_enrich
