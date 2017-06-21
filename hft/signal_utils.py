@@ -59,7 +59,7 @@ def period_return(px, seconds):
     px_copy = px[['second', 'mid']].copy()
     shift_mid_col_name = 'mid'+str(seconds)
     px_copy.columns = [shift_second_col_name, shift_mid_col_name]
-    px = pd.merge(px, px_copy, on='second5', how='left')
+    px = pd.merge(px, px_copy, on=shift_second_col_name, how='left')
     shift_return_col_name = 'return'+str(seconds)
     if seconds > 0:
         px[shift_return_col_name] = (px[shift_mid_col_name] - px.mid) / px.mid
