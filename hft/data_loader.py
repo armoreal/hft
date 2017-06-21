@@ -4,17 +4,18 @@ Data Loading Functions
 
 import os
 import logging
+import json
 import pandas as pd
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-DATA_PATH = 'C:\\Users\\Jingwei\\Documents\\hft\\SpRawFutureTick'
-COLUMNS = ['date', 'time', 'price', 'qty', 'volume', 'open_interest',
-           'b1', 'b1_size', 'b2', 'b2_size', 'b3', 'b3_size',
-           's1', 's1_size', 's2', 's2_size', 's3', 's3_size', 'side']
-COLUMNS_TO_DROP = ['b2', 'b2_size', 'b3', 'b3_size', 's2', 's2_size', 's3', 's3_size']
-ENCODING = 'gb18030'
+DATA_PATH = os.path.join(os.environ['HOME'], 'hft', 'SpRawFutureTick')
+with open(os.path.join('config', 'data.json')) as data_config_file:
+    data_config = json.load(data_config_file)
+COLUMNS = data_config['columns']
+COLUMNS_TO_DROP = data_config['columns_to_drop']
+ENCODING = data_config['encoding']
 
 
 def get_dates():

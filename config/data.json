@@ -1,0 +1,7 @@
+{
+  "columns": ["date", "time", "price", "qty", "volume", "open_interest",
+              "b1", "b1_size", "b2", "b2_size", "b3", "b3_size",
+              "s1", "s1_size", "s2", "s2_size", "s3", "s3_size", "side"],
+  "columns_to_drop": ["b2", "b2_size", "b3", "b3_size", "s2", "s2_size", "s3", "s3_size"],
+  "encoding": "gb18030"
+}
