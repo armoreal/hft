@@ -1,8 +1,15 @@
 """
-Utility Functions of Constructing Signals
+Utility Functions of Constructing Signals for Research Purpose
 """
 
+import os
+import json
 import numpy as np
+import pandas as pd
+
+with open(os.path.join('config', 'signal.json')) as signal_config_file:
+    signal_config = json.load(signal_config_file)
+N_FLEXIBLE_HALF_SECONDS = signal_config['n_flexible_half_seconds']
 
 
 def order_imbalance_ratio(px):
@@ -37,4 +44,25 @@ def period_return(px, seconds):
     :param seconds: integer, could be positive (forward) or negative (backward)
     :return: pandas data frame, augmented by period return
     """
-    pass
+    shift_second_col_name = 'second'+str(seconds)
+    px[shift_second_col_name] = px['second'] + seconds
+
+    # there are many missing shifted mids (approximately 50%) so we allow flexible period
+    px['orig_shift_second'] = px[shift_second_col_name]
+    for i in range(N_FLEXIBLE_HALF_SECONDS):
+        px.loc[~px[shift_second_col_name].isin(px.second), shift_second_col_name] = \
+            px.loc[~px[shift_second_col_name].isin(px.second), 'orig_shift_second'] + 0.5*(i+1)
+        px.loc[~px[shift_second_col_name].isin(px.second), shift_second_col_name] = \
+            px.loc[~px[shift_second_col_name].isin(px.second), 'orig_shift_second'] - 0.5*(i+1)
+    px.drop('orig_shift_second', axis=1, inplace=True)
+
+    px_copy = px[['second', 'mid']].copy()
+    shift_mid_col_name = 'mid'+str(seconds)
+    px_copy.columns = [shift_second_col_name, shift_mid_col_name]
+    px = pd.merge(px, px_copy, on='second5', how='left')
+    shift_return_col_name = 'return'+str(seconds)
+    if seconds > 0:
+        px[shift_return_col_name] = (px[shift_mid_col_name] - px.mid) / px.mid
+    else:
+        px[shift_return_col_name] = (px.mid - px[shift_mid_col_name]) / px[shift_mid_col_name]
+    return px
