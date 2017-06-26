@@ -1,9 +1,7 @@
 import os
 import json
 import logging
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 # import hft.data_loader as dl
 import hft.utils as utils
@@ -11,12 +9,12 @@ import hft.signal_utils as signal
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(name)s  %(levelname)s  %(message)s')
 
-data_path = os.path.join(os.environ['HOME'], 'hft')
+data_path = os.path.join(os.environ['HOME'], 'dropbox', 'hft', 'data')
 
 # load raw data
 # -------------
 
-product = 'zn'  # switch between cu and zn
+product = 'cu'  # switch between cu and zn
 with open(os.path.join(os.environ['HOME'], 'hft', 'ticksize.json')) as ticksize_file:
     ticksize_json = json.load(ticksize_file)
 tick_size = ticksize_json[product]
@@ -74,24 +72,3 @@ for sec in second_list:
     print('Saving forward index to ' + filename)
     px.to_pickle(filename)
 
-# data cleaning
-# -------------
-
-return_cutoff = 6
-
-px[['volume_order_imbalance', 'order_imbalance_ratio', 'price_change', 'bps_return']].describe()
-
-# ~50% of return does not change within 10 seconds
-print(sum(px.bps_return == 0) / sum(~np.isnan(px.bps_return)))
-
-px.loc[np.abs(px.bps_return) > return_cutoff, 'bps_return'] =\
-    np.sign(px.loc[np.abs(px.bps_return) > return_cutoff, 'bps_return']) * return_cutoff
-px.bps_return.hist(bins=20)
-
-plt.scatter(px.order_imbalance_ratio, px.price_tick_move, marker='o', s=0.1)
-plt.xlabel('order imbalance ratio')
-plt.ylabel(str(seconds)+'-seconds price tick move')
-
-plt.scatter(px.volume_order_imbalance, px.price_tick_move, marker='o', s=0.1)
-plt.xlabel('volume order imbalance')
-plt.ylabel(str(seconds)+'-seconds price tick move')
