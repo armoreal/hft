@@ -42,20 +42,21 @@ px[['tick_move_1_0', 'tick_move_2_0', 'tick_move_5_0', 'tick_move_10_0', 'tick_m
 
 px[['tick_move_5_0', 'tick_move_0_10', 'tick_move_0_20']].describe()
 
-plt.subplot(1, 2, 1)
-px.order_flow_imbalance_60_0.hist(bins=100)
-plt.subplot(1, 2, 2)
-px.order_flow_imbalance_300_0.hist(bins=100)
+def plot_two_hist(px, column, freq1, freq2):
+    column1 = utils.get_moving_column_name(column, freq1, 0)
+    column2 = utils.get_moving_column_name(column, freq2, 0)
+    plt.subplot(1, 2, 1)
+    px[column1].hist(bins=100)
+    plt.xlabel(column1)
+    plt.subplot(1, 2, 2)
+    px[column2].hist(bins=100)
+    plt.xlabel(column2)
+    return
 
-plt.subplot(1, 2, 1)
-px.order_imbalance_ratio_60_0.hist(bins=100)
-plt.subplot(1, 2, 2)
-px.order_imbalance_ratio_300_0.hist(bins=100)
+plot_two_hist(px, 'order_flow_imbalance', 60, 300)
+plot_two_hist(px, 'order_imbalance_ratio', 60, 300)
+plot_two_hist(px, 'tick_move', 60, 300)
 
-plt.subplot(1, 2, 1)
-px['tick_move_0_60'].hist(bins=100)
-plt.subplot(1, 2, 2)
-px['tick_move_0_300'].hist(bins=100)
 px.groupby(np.abs(px.tick_move_0_10)).size()
 
 print(sum(px.tick_move_0_10 == 0) / sum(~np.isnan(px.tick_move_0_10)))  # % no move
@@ -86,6 +87,20 @@ def scatter_plot(px, column_name, backward_seconds, forward_seconds):
     plt.show()
     return
 
+def plot_two_scatter(px, column, freq1, freq2):
+    plt.subplot(1, 2, 1)
+    scatter_plot(px, column, freq1, freq1)
+    plt.subplot(1, 2, 2)
+    scatter_plot(px, column, freq2, freq2)
+    return
+
+plot_two_scatter(px, 'order_imbalance_ratio', 60, 300)
+plot_two_scatter(px, 'order_flow_imbalance', 60, 300)
+plot_two_scatter(px, 'tick_move', 5, 60)
+
+# correlations
+# ------------
+
 def xy_corr(px, second_list, column_name):
     column_names = [utils.get_moving_column_name(column_name, x, 0) for x in second_list]
     return_names = [utils.get_moving_column_name('tick_move', 0, x) for x in second_list]
@@ -99,21 +114,6 @@ def xx_corr(px, second_list, column_name, row_name):
     big_corr = px[column_names + row_names].corr()
     corr_mat = big_corr.loc[row_names, column_names]
     return corr_mat
-
-plt.subplot(1, 2, 1)
-scatter_plot(px, 'order_imbalance_ratio', 60, 60)
-plt.subplot(1, 2, 2)
-scatter_plot(px, 'order_imbalance_ratio', 300, 300)
-
-plt.subplot(1, 2, 1)
-scatter_plot(px, 'order_flow_imbalance', 60, 60)
-plt.subplot(1, 2, 2)
-scatter_plot(px, 'order_flow_imbalance', 300, 300)
-
-plt.subplot(1, 2, 1)
-scatter_plot(px, 'tick_move', 5, 5)
-plt.subplot(1, 2, 2)
-scatter_plot(px, 'tick_move', 60, 60)
 
 second_list = [1, 2, 5, 10, 20, 30, 60, 120, 180, 300]
 for sec in second_list:
