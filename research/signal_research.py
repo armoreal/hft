@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn import linear_model
+from scipy.stats.mstats import winsorize
 
 import hft.utils as utils
 
@@ -18,7 +19,7 @@ research_path = os.path.join(hft_path, 'research')
 # ------------------
 
 product = 'zn'  # switch between cu and zn
-with open(os.path.join(os.environ['HOME'], 'hft', 'ticksize.json')) as ticksize_file:
+with open(os.path.join(data_path, 'ticksize.json')) as ticksize_file:
     ticksize_json = json.load(ticksize_file)
 tick_size = ticksize_json[product]
 
@@ -31,11 +32,13 @@ px = px[px.date != '2013-10-31']
 # signal and return distribution
 # ------------------------------
 
-px[['order_flow_imbalance_1_0', 'order_flow_imbalance_2_0', 'order_flow_imbalance_5_0',
-    'order_flow_imbalance_10_0', 'order_flow_imbalance_20_0']].describe()
+px[['order_flow_imbalance_1_0', 'order_flow_imbalance_2_0', 'order_flow_imbalance_5_0', 'order_flow_imbalance_10_0',
+    'order_flow_imbalance_20_0', 'order_flow_imbalance_30_0', 'order_flow_imbalance_60_0',
+    'order_flow_imbalance_120_0', 'order_flow_imbalance_180_0', 'order_flow_imbalance_300_0']].describe()
 
-px[['order_imbalance_ratio_1_0', 'order_imbalance_ratio_2_0', 'order_imbalance_ratio_5_0',
-    'order_imbalance_ratio_10_0', 'order_imbalance_ratio_20_0']].describe()
+px[['order_imbalance_ratio_1_0', 'order_imbalance_ratio_2_0', 'order_imbalance_ratio_5_0', 'order_imbalance_ratio_10_0',
+    'order_imbalance_ratio_20_0', 'order_imbalance_ratio_30_0', 'order_imbalance_ratio_60_0',
+    'order_imbalance_ratio_120_0', 'order_imbalance_ratio_180_0', 'order_imbalance_ratio_300_0']].describe()
 
 px[['tick_move_1_0', 'tick_move_2_0', 'tick_move_5_0', 'tick_move_10_0', 'tick_move_20_0', 'tick_move_30_0',
     'tick_move_60_0', 'tick_move_120_0', 'tick_move_180_0', 'tick_move_300_0']][px.date != '2013-10-31'].describe()
@@ -67,36 +70,42 @@ print(sum(px.tick_move_0_20 == 0) / sum(~np.isnan(px.tick_move_0_20)))  # % no m
 print(sum(np.abs(px.tick_move_0_20) >= 1) / sum(~np.isnan(px.tick_move_0_20)))  # % 1 tick move
 print(sum(np.abs(px.tick_move_0_20) >= 2) / sum(~np.isnan(px.tick_move_0_20)))  # % 2 tick move
 
-# return - signal linear relationship
-# -----------------------------------
+# scatter plot
+# ------------
 
-def scatter_plot(px, column_name, backward_seconds, forward_seconds):
-    signal_column_name = utils.get_moving_column_name(column_name, backward_seconds, 0)
-    return_column_name = utils.get_moving_column_name('tick_move', 0, forward_seconds)
-    regr_data = px[[signal_column_name, return_column_name]].dropna()
-    x = regr_data[[signal_column_name]].values
-    y = regr_data[return_column_name].values
+def scatter_plot(px, x_column, x_backward, x_forward, y_column, y_backward, y_forward):
+    x_column_name = utils.get_moving_column_name(x_column, x_backward, x_forward)
+    y_column_name = utils.get_moving_column_name(y_column, y_backward, y_forward)
+    regr_data = px[[x_column_name, y_column_name]].dropna()
+    x = regr_data[[x_column_name]].values
+    y = regr_data[y_column_name].values
     regr = linear_model.LinearRegression()
     regr.fit(x, y)
     print('Coefficients: \n', regr.coef_)
     print('R-square: %f' % regr.score(x, y))
     plt.scatter(x, y, marker='o', s=0.1)
     plt.plot(x, regr.predict(x), color='red', linewidth=1)
-    plt.xlabel(signal_column_name)
-    plt.ylabel(return_column_name)
+    plt.xlabel(x_column_name)
+    plt.ylabel(y_column_name)
     plt.show()
     return
 
-def plot_two_scatter(px, column, freq1, freq2):
+def plot_two_scatter(px, x_column, y_column, x_b1, x_f1, y_b1, y_f1, x_b2, x_f2, y_b2, y_f2):
     plt.subplot(1, 2, 1)
-    scatter_plot(px, column, freq1, freq1)
+    scatter_plot(px, x_column, x_b1, x_f1, y_column, y_b1, y_f1)
     plt.subplot(1, 2, 2)
-    scatter_plot(px, column, freq2, freq2)
+    scatter_plot(px, x_column, x_b2, x_f2, y_column, y_b2, y_f2)
     return
 
-plot_two_scatter(px, 'order_imbalance_ratio', 60, 300)
-plot_two_scatter(px, 'order_flow_imbalance', 60, 300)
-plot_two_scatter(px, 'tick_move', 5, 60)
+# forward return by signal
+plot_two_scatter(px, 'order_imbalance_ratio', 'tick_move', 1, 0, 0, 1, 5, 0, 0, 5)
+plot_two_scatter(px, 'order_flow_imbalance', 'tick_move', 60, 0, 0, 60, 300, 0, 0, 300)
+plot_two_scatter(px, 'tick_move',  'tick_move', 5, 0, 0, 5, 60, 0, 0, 60)
+
+# signal by signal
+plot_two_scatter(px, 'order_imbalance_ratio', 'tick_move', 1, 0, 1, 0, 5, 0, 5, 0)
+plot_two_scatter(px, 'order_flow_imbalance', 'tick_move', 60, 0, 60, 0, 300, 0, 300, 0)
+plot_two_scatter(px, 'order_flow_imbalance', 'order_imbalance_ratio', 60, 0, 60, 0, 300, 0, 300, 0)
 
 # correlations
 # ------------
@@ -133,3 +142,36 @@ ofi_return = xx_corr(px, second_list, 'order_flow_imbalance', 'tick_move')
 oir_ofi.to_csv(os.path.join(research_path, 'oir_ofi_corr.csv'))
 oir_return.to_csv(os.path.join(research_path, 'oir_return_corr.csv'))
 ofi_return.to_csv(os.path.join(research_path, 'ofi_return_corr.csv'))
+
+# multivariate regression
+# -----------------------
+
+def reg(px, freq_oir, freq_ofi, freq_xreturn, freq_yreturn, show_plot=True):
+    oir_column_name = utils.get_moving_column_name('order_imbalance_ratio', freq_oir, 0)
+    ofi_column_name = utils.get_moving_column_name('order_flow_imbalance', freq_ofi, 0)
+    xreturn_column_name = utils.get_moving_column_name('tick_move', freq_xreturn, 0)
+    yreturn_column_name = utils.get_moving_column_name('tick_move', 0, freq_yreturn)
+    regr_data = px[[oir_column_name, ofi_column_name, xreturn_column_name, yreturn_column_name]].dropna()
+    regr_data[ofi_column_name] = winsorize(regr_data[ofi_column_name], (0.005, 0.005))
+    # regr_data[xreturn_column_name] = winsorize(regr_data[xreturn_column_name], (0.005, 0.005))
+    # regr_data[yreturn_column_name] = winsorize(regr_data[yreturn_column_name], (0.005, 0.005))
+    x = regr_data[[oir_column_name, ofi_column_name, xreturn_column_name]].values
+    y = regr_data[yreturn_column_name].values
+    regr = linear_model.LinearRegression()
+    regr.fit(x, y)
+    if show_plot:
+        yhat = regr.predict(x)
+        plt.scatter(yhat, y, marker='o', s=0.1)
+        plt.plot(yhat, yhat, color='red', linewidth=1)
+        plt.xlabel('Fitted ' + yreturn_column_name)
+        plt.ylabel('Observed ' + yreturn_column_name)
+        plt.show()
+    return regr.score(x, y), regr.coef_
+
+
+freq_oir = 1
+freq_ofi = 5
+freq_xreturn = 2
+freq_yreturn = 10
+
+reg(px, freq_oir, freq_ofi, freq_xreturn, freq_yreturn, True)
