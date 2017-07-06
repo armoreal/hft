@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from sklearn import linear_model
 from scipy.stats.mstats import winsorize
 import scipy.stats as stats
+import statsmodels.api as sm
 
 import hft.utils as utils
 
@@ -148,7 +149,7 @@ ofi_return.to_csv(os.path.join(research_path, 'ofi_return_corr.csv'))
 # multivariate regression
 # -----------------------
 
-def reg(px, freq_oir, freq_ofi, freq_xreturn, freq_yreturn, show_plot=True):
+def reg(px, freq_oir, freq_ofi, freq_xreturn, freq_yreturn, show_plot=True, show_inference=True):
     oir_column_name = utils.get_moving_column_name('order_imbalance_ratio', freq_oir, 0)
     ofi_column_name = utils.get_moving_column_name('order_flow_imbalance', freq_ofi, 0)
     xreturn_column_name = utils.get_moving_column_name('tick_move', freq_xreturn, 0)
@@ -159,7 +160,6 @@ def reg(px, freq_oir, freq_ofi, freq_xreturn, freq_yreturn, show_plot=True):
     # regr_data[yreturn_column_name] = winsorize(regr_data[yreturn_column_name], (0.005, 0.005))
     x = regr_data[[oir_column_name, ofi_column_name, xreturn_column_name]].values
     y = regr_data[yreturn_column_name].values
-    y = np.sign(y) * np.log(np.abs(y))
     regr = linear_model.LinearRegression()
     regr.fit(x, y)
     yhat = regr.predict(x)
@@ -180,6 +180,11 @@ def reg(px, freq_oir, freq_ofi, freq_xreturn, freq_yreturn, show_plot=True):
         plt.figure(3)
         stats.probplot(resids, dist="norm", plot=pylab)
         plt.title('QQ plot of residuals')
+    if show_inference:
+        x2 = sm.add_constant(x)
+        est = sm.OLS(y, x2)
+        est2 = est.fit()
+        print(est2.summary())
     return {'r-square': regr.score(x, y), 'beta': regr.coef_, 'residuals': resids}
 
 
