@@ -27,6 +27,11 @@ def get_moving_column_name(column, backward_seconds, forward_seconds):
     return column + '_' + str(backward_seconds) + '_' + str(forward_seconds)
 
 
+def get_raw_column_name(moving_column_name):
+    words = moving_column_name.split('_')
+    return '_'.join(words[:(len(words)-2)])
+
+
 def get_index_within_period(second, backward_seconds, forward_seconds, px=None):
     logger.info('Getting index within (%s, %s) seconds', str(backward_seconds), str(forward_seconds))
     forward_second = second + forward_seconds
