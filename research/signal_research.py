@@ -3,9 +3,11 @@ import json
 import logging
 import numpy as np
 import pandas as pd
+import pylab
 import matplotlib.pyplot as plt
 from sklearn import linear_model
 from scipy.stats.mstats import winsorize
+import scipy.stats as stats
 
 import hft.utils as utils
 
@@ -157,16 +159,28 @@ def reg(px, freq_oir, freq_ofi, freq_xreturn, freq_yreturn, show_plot=True):
     # regr_data[yreturn_column_name] = winsorize(regr_data[yreturn_column_name], (0.005, 0.005))
     x = regr_data[[oir_column_name, ofi_column_name, xreturn_column_name]].values
     y = regr_data[yreturn_column_name].values
+    y = np.sign(y) * np.log(np.abs(y))
     regr = linear_model.LinearRegression()
     regr.fit(x, y)
+    yhat = regr.predict(x)
+    resids = yhat - y
     if show_plot:
-        yhat = regr.predict(x)
+        # regression line
+        plt.figure(1)
         plt.scatter(yhat, y, marker='o', s=0.1)
         plt.plot(yhat, yhat, color='red', linewidth=1)
         plt.xlabel('Fitted ' + yreturn_column_name)
         plt.ylabel('Observed ' + yreturn_column_name)
         plt.show()
-    return regr.score(x, y), regr.coef_
+        # residual histogram
+        plt.figure(2)
+        plt.hist(resids, bins=40)
+        plt.title('Histogram of residuals')
+        # residual qq plot
+        plt.figure(3)
+        stats.probplot(resids, dist="norm", plot=pylab)
+        plt.title('QQ plot of residuals')
+    return {'r-square': regr.score(x, y), 'beta': regr.coef_, 'residuals': resids}
 
 
 freq_oir = 1
@@ -174,4 +188,6 @@ freq_ofi = 5
 freq_xreturn = 2
 freq_yreturn = 10
 
-reg(px, freq_oir, freq_ofi, freq_xreturn, freq_yreturn, True)
+res = reg(px, freq_oir, freq_ofi, freq_xreturn, freq_yreturn, True)
+
+
