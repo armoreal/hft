@@ -149,13 +149,9 @@ def xy_corr(px, second_list, x_raw_column, y_raw_column='tick_move', winsorize_o
     y_column = [utils.get_moving_column_name(y_raw_column, 0, x) for x in second_list]
     if winsorize_option is not None:
         for col in x_column:
-            px_new[col] = winsorize(px_new[col], tuple(winsorize_option['x_prob']))
-            px_new.loc[px_new[col] > winsorize_option['x_bound'][1], col] = winsorize_option['x_bound'][1]
-            px_new.loc[px_new[col] < winsorize_option['x_bound'][0], col] = winsorize_option['x_bound'][0]
+            px_new[col] = utils.winsorize(px_new[col], winsorize_option['x_prob'], winsorize_option['x_bound'])
         for col in y_column:
-            px_new[col] = winsorize(px_new[col], tuple(winsorize_option['y_prob']))
-            px_new.loc[px_new[col] > winsorize_option['y_bound'][1], col] = winsorize_option['y_bound'][1]
-            px_new.loc[px_new[col] < winsorize_option['y_bound'][0], col] = winsorize_option['y_bound'][0]
+            px_new[col] = utils.winsorize(px_new[col], winsorize_option['y_prob'], winsorize_option['y_bound'])
     big_corr = px_new[x_column + y_column].corr()
     corr_mat = big_corr.loc[y_column, x_column]
     return corr_mat
