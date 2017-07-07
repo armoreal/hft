@@ -8,6 +8,8 @@ import logging
 import numpy as np
 import pandas as pd
 
+import hft.backtester as bt
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(name)s  %(levelname)s  %(message)s')
 
 hft_path = os.path.join(os.environ['HOME'], 'dropbox', 'hft')
@@ -29,9 +31,15 @@ px = px[px.date != '2013-10-31']
 # -------------
 
 config = dict()
+
+# general configuration
+config['name'] = product + '_1'
+config['data_path'] = data_path
+config['save_result'] = True
 config['start_date'] = '2013-10-05'
+
+# model specifics
 config['training_period'] = 21  # days
-config['holding_period'] = 10  # seconds
 config['feature_column'] = ['order_imbalance_ratio', 'order_flow_imbalance', 'tick_move']
 config['feature_freq'] = [1, 2, 5, 10, 20, 30, 60, 120, 180, 300]
 config['feature_winsorize_prob'] = {'order_imbalance_ratio': [0.0, 0.0],
@@ -43,8 +51,17 @@ config['feature_winsorize_bound'] = {'order_imbalance_ratio': [-np.inf, np.inf],
 config['response_column'] = 'tick_move'
 config['response_winsorize_prob'] = [0, 0]
 config['response_winsorize_bound'] = [-5, 5]
+
+# open/close/hold condition
+config['holding_period'] = 10  # seconds
 config['trade_trigger_threshold'] = [-2, 2]
+
+# pnl
+config['use_mid'] = False  # if False, use touch price
 
 # backtesting
 # -----------
 
+backtest = bt.backtest(px, config)
+backtest = bt.trade(backtest, config)
+backtest = bt.pnl(backtest, config)
