@@ -4,8 +4,27 @@ Utility functions
 
 import logging
 import pandas as pd
+from scipy.stats import mstats
 
 logger = logging.getLogger(__name__)
+
+# array manipulation
+# ------------------
+
+
+def winsorize(array, prob, bound):
+    """Winsorize an array based on both prob and bound
+
+    :param array: array-like
+    :param prob: list of len=2, tail probabilities, example: [0.01, 0.01]
+    :param bound: list of len=2, tail bounds, example: [-100, 100]
+    :return: array-like, winsorized array
+    """
+    winsorized_array = pd.Series(mstats.winsorize(array, tuple(prob)))
+    winsorized_array[winsorized_array > bound[1]] = bound[1]
+    winsorized_array[winsorized_array < bound[0]] = bound[0]
+    return winsorized_array.values
+
 
 # table aggregation
 # -----------------
