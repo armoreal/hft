@@ -2,7 +2,9 @@
 Backtest Strategy
 """
 
+import os
 import logging
+import pickle
 import pandas as pd
 from sklearn import linear_model
 
@@ -66,6 +68,7 @@ def backtest(px, config):
     bt = pd.DataFrame()
     columns = ['dt', 'date', 'time', 'price', 'qty', 'volume', 'open_interest',
                'b1', 'b1_size', 's1', 's1_size', 'mid', 'second']
+
     for i in range(config['training_period'], len(dates)):
         date = dates[i]
         logger.info('Backtesting on %s', date)
@@ -81,8 +84,26 @@ def backtest(px, config):
         alpha = model.predict(x_new)
         px_i['alpha'] = alpha
         logger.info('Making trading decision')
-        px_i['trade'] = 0
-        px_i.loc[px_i.alpha > config['trade_trigger_threshold'][1]] = 1
-        px_i.loc[px_i.alpha < config['trade_trigger_threshold'][0]] = -1
         bt = bt.append(px_i)
+
+    if config['save_result']:
+        file_path = os.path.join(config['data_path'], 'backtest', config['name'])
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        bt.to_pickle(os.path.join(file_path, 'backtest.pkl'))
+        config_file = os.path.join(file_path, 'config.pkl')
+        with open(config_file, 'wb') as cf:
+            pickle.dump(config, cf)
+
     return bt
+
+
+def trade(bt, config):
+    bt['trade'] = 0
+    bt.loc[bt.alpha > config['trade_trigger_threshold'][1]] = 1
+    bt.loc[bt.alpha < config['trade_trigger_threshold'][0]] = -1
+    return bt
+
+
+def pnl(bt, config):
+    pass
