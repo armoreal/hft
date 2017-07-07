@@ -4,6 +4,7 @@ Backtest Strategy
 
 import logging
 import pandas as pd
+from sklearn import linear_model
 
 import hft.utils as utils
 import hft.signal_utils as signal
@@ -11,14 +12,14 @@ import hft.signal_utils as signal
 logger = logging.getLogger(__name__)
 
 
-def select_feature(px, config):
+def select_feature(train, config):
     """Select features to fit model
 
-    :param px: pandas data frame
+    :param train: pandas data frame
     :param config: dictionary, config parameters
     :return: list of strings, column names
     """
-    y_name = utils.get_moving_column_name(config['response_column'], 0, config['holding_period'])
+    y_column = utils.get_moving_column_name(config['response_column'], 0, config['holding_period'])
     selected_features = []
     for feature in config['feature_column']:
         logger.debug('Computing correlation of %s and %s', feature, config['response_column'])
@@ -27,32 +28,35 @@ def select_feature(px, config):
                             'y_prob': config['response_winsorize_prob'],
                             'y_bound': config['response_winsorize_bound']
                             }
-        corr_mat = signal.xy_corr(px, config['feature_freq'], feature, config['response_column'], winsorize_option)
-        correlation = corr_mat.loc[y_name]
+        corr_mat = signal.xy_corr(train, config['feature_freq'], feature, config['response_column'], winsorize_option)
+        correlation = corr_mat.loc[y_column]
         selected_features.append(correlation.argmax())
     return selected_features
 
 
-def fit(px, features, config):
+def fit(train, features, config):
     """Fit linear model using features
 
-    :param px: pandas data frame, must contain columns in features
+    :param train: pandas data frame, must contain columns in features
     :param features: list of column names
     :param config: dictionary, config parameters
     :return: sklearn model class
     """
-    pass
+    y_column = utils.get_moving_column_name(config['response_column'], 0, config['holding_period'])
+    regr_data = train[features+[y_column]].dropna()
 
-
-def predict(px, features, model):
-    """Predict based on estimated model
-
-    :param px: pandas data frame, must contain columns in features
-    :param features: list of column names
-    :param model: pandas data frame, coefficients of linear model
-    :return: array like predicted values
-    """
-    pass
+    # data processing
+    for feature in features:
+        raw_feature = utils.get_raw_column_name(feature)
+        regr_data[feature] = utils.winsorize(regr_data[feature], config['feature_winsorize_prob'][raw_feature],
+                                             config['feature_winsorize_bound'][raw_feature])
+    regr_data[y_column] = utils.winsorize(regr_data[y_column], config['response_winsorize_prob'],
+                                          config['response_winsorize_bound'])
+    x = regr_data[features].values
+    y = regr_data[y_column].values
+    regr = linear_model.LinearRegression(fit_intercept=False)
+    regr.fit(x, y)
+    return regr
 
 
 def backtest(px, config):
@@ -60,6 +64,8 @@ def backtest(px, config):
     dates.sort()
     y_name = utils.get_moving_column_name(config['response_column'], 0, config['holding_period'])
     bt = pd.DataFrame()
+    columns = ['dt', 'date', 'time', 'price', 'qty', 'volume', 'open_interest',
+               'b1', 'b1_size', 's1', 's1_size', 'mid', 'second']
     for i in range(config['training_period'], len(dates)):
         date = dates[i]
         logger.info('Backtesting on %s', date)
@@ -69,8 +75,10 @@ def backtest(px, config):
         logger.info('Fitting model')
         model = fit(train, features, config)
         logger.info('Predicting future return')
-        px_i = px.loc[date, features + [y_name]].copy()
-        alpha = predict(px_i, features, model)
+        px_i = px.loc[px.date == date, columns + features + [y_name]].copy()
+        x_new = px_i[features]
+        x_new = x_new.fillna(x_new.median())
+        alpha = model.predict(x_new)
         px_i['alpha'] = alpha
         logger.info('Making trading decision')
         px_i['trade'] = 0
@@ -78,5 +86,3 @@ def backtest(px, config):
         px_i.loc[px_i.alpha < config['trade_trigger_threshold'][0]] = -1
         bt = bt.append(px_i)
     return bt
-
-
