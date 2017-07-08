@@ -67,4 +67,4 @@ config['transaction_fee'] = 0.0001  # 1 bps transaction fee
 backtest = bt.backtest(px, config)
 backtest = bt.trade(backtest, config)
 backtest = bt.pnl(backtest, config)
-bt.save(bt, config)
+bt.save(backtest, config)
