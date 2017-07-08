@@ -72,12 +72,12 @@ def backtest(px, config):
     for i in range(config['training_period'], len(dates)):
         date = dates[i]
         logger.info('Backtesting on %s', date)
-        logger.info('Selecting feature')
+        logger.debug('Selecting feature')
         train = px[(px.date >= dates[i-config['training_period']]) & (px.date < date)].copy()
         features = select_feature(train, config)
-        logger.info('Fitting model')
+        logger.debug('Fitting model')
         model = fit(train, features, config)
-        logger.info('Predicting future return')
+        logger.debug('Predicting future return')
         px_i = px.loc[px.date == date, columns + features + [y_name]].copy()
         x_new = px_i[features]
         x_new = x_new.fillna(x_new.median())
