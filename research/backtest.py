@@ -35,7 +35,6 @@ config = dict()
 # general configuration
 config['name'] = product + '_1'
 config['data_path'] = data_path
-config['save_result'] = True
 config['start_date'] = '2013-10-05'
 
 # model specifics
@@ -54,10 +53,13 @@ config['response_winsorize_bound'] = [-5, 5]
 
 # open/close/hold condition
 config['holding_period'] = 10  # seconds
-config['trade_trigger_threshold'] = [-2, 2]
+config['trade_trigger_threshold'] = [-0.4, 0.4]
+config['start_second'] = 180
+config['end_second'] = 21420
 
 # pnl
 config['use_mid'] = False  # if False, use touch price
+config['transaction_fee'] = 0.0001  # 1 bps transaction fee
 
 # backtesting
 # -----------
@@ -65,3 +67,4 @@ config['use_mid'] = False  # if False, use touch price
 backtest = bt.backtest(px, config)
 backtest = bt.trade(backtest, config)
 backtest = bt.pnl(backtest, config)
+bt.save(bt, config)
