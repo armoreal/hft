@@ -5,6 +5,7 @@ Backtest Strategy
 import os
 import logging
 import pickle
+import numpy as np
 import pandas as pd
 from sklearn import linear_model
 
@@ -68,7 +69,6 @@ def backtest(px, config):
     bt = pd.DataFrame()
     columns = ['dt', 'date', 'time', 'price', 'qty', 'volume', 'open_interest',
                'b1', 'b1_size', 's1', 's1_size', 'mid', 'second']
-
     for i in range(config['training_period'], len(dates)):
         date = dates[i]
         logger.info('Backtesting on %s', date)
@@ -85,25 +85,62 @@ def backtest(px, config):
         px_i['alpha'] = alpha
         logger.info('Making trading decision')
         bt = bt.append(px_i)
-
-    if config['save_result']:
-        file_path = os.path.join(config['data_path'], 'backtest', config['name'])
-        if not os.path.exists(file_path):
-            os.makedirs(file_path)
-        bt.to_pickle(os.path.join(file_path, 'backtest.pkl'))
-        config_file = os.path.join(file_path, 'config.pkl')
-        with open(config_file, 'wb') as cf:
-            pickle.dump(config, cf)
-
+    logger.info('Finish backtesting')
     return bt
 
 
 def trade(bt, config):
     bt['trade'] = 0
-    bt.loc[bt.alpha > config['trade_trigger_threshold'][1]] = 1
-    bt.loc[bt.alpha < config['trade_trigger_threshold'][0]] = -1
+    bt.loc[bt.alpha > config['trade_trigger_threshold'][1], 'trade'] = 1
+    bt.loc[bt.alpha < config['trade_trigger_threshold'][0], 'trade'] = -1
+    bt.loc[bt.second > config['end_second'], 'trade'] = 0
+    bt.loc[bt.second < config['start_second'], 'trade'] = 0
     return bt
 
 
+def get_close_second(bt, config):
+    bt['close_second'] = bt.second + config['holding_period']
+    dates = list(set(bt.date))
+    dates.sort()
+    matched_close_second = []
+    for date in dates:
+        bti = bt[bt.date == date]
+        close_index = np.searchsorted(bti.second, bti.close_second)
+        close_index[close_index == len(close_index)] = len(close_index) - 1
+        matched_close_second_i = bti.second.values[close_index].tolist()
+        matched_close_second.extend(matched_close_second_i)
+    return matched_close_second
+
+
 def pnl(bt, config):
-    pass
+    logger.info('Computing PnL...')
+    if config['use_mid']:
+        bt['open_price'] = bt.mid
+    else:
+        bt['open_price'] = (bt.trade > 0) * bt.s1 + (bt.trade < 0) * bt.b1
+    bt['matched_close_second'] = get_close_second(bt, config)
+    dummy_bt = bt[['date', 'second', 'b1', 's1', 'mid']].copy()
+    dummy_bt.columns = ['date', 'matched_close_second', 'close_b1', 'close_s1', 'close_mid']
+    bt = pd.merge(bt, dummy_bt, on=['date', 'matched_close_second'], how='left')
+    if config['use_mid']:
+        bt['close_price'] = bt.close_mid
+    else:
+        bt['close_price'] = (bt.trade > 0) * bt.close_b1 + (bt.trade < 0) * bt.close_s1
+    bt['pnl'] = bt.trade * (bt.close_price - bt.open_price)
+    bt['transaction_fee'] = config['transaction_fee'] * np.abs(bt.trade) * (bt.open_price + bt.close_price)
+    logger.info('Finished PnL calculation')
+    return bt
+
+
+def save(bt, config):
+    file_path = os.path.join(config['data_path'], 'backtest', config['name'])
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+    bt_file = os.path.join(file_path, 'backtest.pkl')
+    logger.info('Saving backtesting result to %s', bt_file)
+    bt.to_pickle(bt_file)
+    config_file = os.path.join(file_path, 'config.pkl')
+    logger.info('Saving config file to %s', config_file)
+    with open(config_file, 'wb') as cf:
+        pickle.dump(config, cf)
+    return
