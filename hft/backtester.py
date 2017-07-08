@@ -83,13 +83,13 @@ def backtest(px, config):
         x_new = x_new.fillna(x_new.median())
         alpha = model.predict(x_new)
         px_i['alpha'] = alpha
-        logger.info('Making trading decision')
         bt = bt.append(px_i)
     logger.info('Finish backtesting')
     return bt
 
 
 def trade(bt, config):
+    logger.info('Making trading decision')
     bt['trade'] = 0
     bt.loc[bt.alpha > config['trade_trigger_threshold'][1], 'trade'] = 1
     bt.loc[bt.alpha < config['trade_trigger_threshold'][0], 'trade'] = -1
