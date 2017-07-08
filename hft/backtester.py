@@ -66,7 +66,7 @@ def backtest(px, config):
     dates = list(set(px.date))
     dates.sort()
     y_name = utils.get_moving_column_name(config['response_column'], 0, config['holding_period'])
-    bt = pd.DataFrame()
+    btdf = pd.DataFrame()
     columns = ['dt', 'date', 'time', 'price', 'qty', 'volume', 'open_interest',
                'b1', 'b1_size', 's1', 's1_size', 'mid', 'second']
     for i in range(config['training_period'], len(dates)):
@@ -83,28 +83,28 @@ def backtest(px, config):
         x_new = x_new.fillna(x_new.median())
         alpha = model.predict(x_new)
         px_i['alpha'] = alpha
-        bt = bt.append(px_i)
+        btdf = btdf.append(px_i)
     logger.info('Finish backtesting')
-    return bt
+    return btdf
 
 
-def trade(bt, config):
+def trade(btdf, config):
     logger.info('Making trading decision')
-    bt['trade'] = 0
-    bt.loc[bt.alpha > config['trade_trigger_threshold'][1], 'trade'] = 1
-    bt.loc[bt.alpha < config['trade_trigger_threshold'][0], 'trade'] = -1
-    bt.loc[bt.second > config['end_second'], 'trade'] = 0
-    bt.loc[bt.second < config['start_second'], 'trade'] = 0
-    return bt
+    btdf['trade'] = 0
+    btdf.loc[btdf.alpha > config['trade_trigger_threshold'][1], 'trade'] = 1
+    btdf.loc[btdf.alpha < config['trade_trigger_threshold'][0], 'trade'] = -1
+    btdf.loc[btdf.second > config['end_second'], 'trade'] = 0
+    btdf.loc[btdf.second < config['start_second'], 'trade'] = 0
+    return btdf
 
 
-def get_close_second(bt, config):
-    bt['close_second'] = bt.second + config['holding_period']
-    dates = list(set(bt.date))
+def get_close_second(btdf, config):
+    btdf['close_second'] = btdf.second + config['holding_period']
+    dates = list(set(btdf.date))
     dates.sort()
     matched_close_second = []
     for date in dates:
-        bti = bt[bt.date == date]
+        bti = btdf[btdf.date == date]
         close_index = np.searchsorted(bti.second, bti.close_second)
         close_index[close_index == len(close_index)] = len(close_index) - 1
         matched_close_second_i = bti.second.values[close_index].tolist()
@@ -112,35 +112,44 @@ def get_close_second(bt, config):
     return matched_close_second
 
 
-def pnl(bt, config):
+def pnl(btdf, config):
     logger.info('Computing PnL...')
     if config['use_mid']:
-        bt['open_price'] = bt.mid
+        btdf['open_price'] = btdf.mid
     else:
-        bt['open_price'] = (bt.trade > 0) * bt.s1 + (bt.trade < 0) * bt.b1
-    bt['matched_close_second'] = get_close_second(bt, config)
-    dummy_bt = bt[['date', 'second', 'b1', 's1', 'mid']].copy()
+        btdf['open_price'] = (btdf.trade > 0) * btdf.s1 + (btdf.trade < 0) * btdf.b1
+    btdf['matched_close_second'] = get_close_second(btdf, config)
+    dummy_bt = btdf[['date', 'second', 'b1', 's1', 'mid']].copy()
     dummy_bt.columns = ['date', 'matched_close_second', 'close_b1', 'close_s1', 'close_mid']
-    bt = pd.merge(bt, dummy_bt, on=['date', 'matched_close_second'], how='left')
+    btdf = pd.merge(btdf, dummy_bt, on=['date', 'matched_close_second'], how='left')
     if config['use_mid']:
-        bt['close_price'] = bt.close_mid
+        btdf['close_price'] = btdf.close_mid
     else:
-        bt['close_price'] = (bt.trade > 0) * bt.close_b1 + (bt.trade < 0) * bt.close_s1
-    bt['pnl'] = bt.trade * (bt.close_price - bt.open_price)
-    bt['transaction_fee'] = config['transaction_fee'] * np.abs(bt.trade) * (bt.open_price + bt.close_price)
+        btdf['close_price'] = (btdf.trade > 0) * btdf.close_b1 + (btdf.trade < 0) * btdf.close_s1
+    btdf['pnl'] = btdf.trade * (btdf.close_price - btdf.open_price)
+    btdf['transaction_fee'] = config['transaction_fee'] * np.abs(btdf.trade) * (btdf.open_price + btdf.close_price)
+    btdf['net_pnl'] = btdf['pnl'] - btdf['transaction_fee']
     logger.info('Finished PnL calculation')
-    return bt
+    return btdf
 
 
-def save(bt, config):
+def save(btdf, config):
     file_path = os.path.join(config['data_path'], 'backtest', config['name'])
     if not os.path.exists(file_path):
         os.makedirs(file_path)
     bt_file = os.path.join(file_path, 'backtest.pkl')
     logger.info('Saving backtesting result to %s', bt_file)
-    bt.to_pickle(bt_file)
+    btdf.to_pickle(bt_file)
     config_file = os.path.join(file_path, 'config.pkl')
     logger.info('Saving config file to %s', config_file)
     with open(config_file, 'wb') as cf:
         pickle.dump(config, cf)
     return
+
+
+def daily_summary(btdf):
+    trades = btdf[btdf.trade != 0]
+    f = {'pnl': 'sum', 'transaction_fee': 'sum', 'net_pnl': 'sum'}
+    daily = trades.groupby('date').agg(f)
+    daily['n_trades'] = trades.groupby('date').size()
+    return daily
