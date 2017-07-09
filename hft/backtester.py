@@ -63,6 +63,7 @@ def fit(train, features, config):
 
 
 def backtest(px, config):
+    logger.info('Start backtesting')
     dates = list(set(px.date))
     dates.sort()
     y_name = utils.get_moving_column_name(config['response_column'], 0, config['holding_period'])
@@ -121,7 +122,7 @@ def pnl(btdf, config):
     btdf['matched_close_second'] = get_close_second(btdf, config)
     dummy_bt = btdf[['date', 'second', 'b1', 's1', 'mid']].copy()
     dummy_bt.columns = ['date', 'matched_close_second', 'close_b1', 'close_s1', 'close_mid']
-    btdf = pd.merge(btdf, dummy_bt, on=['date', 'matched_close_second'], how='left')
+    btdf = utils.left_join(btdf, dummy_bt, ['date', 'matched_close_second'])
     if config['use_mid']:
         btdf['close_price'] = btdf.close_mid
     else:
@@ -153,3 +154,17 @@ def daily_summary(btdf):
     daily = trades.groupby('date').agg(f)
     daily['n_trades'] = trades.groupby('date').size()
     return daily
+
+
+def summary(btdf):
+    trades = btdf[btdf.trade != 0]
+    res = dict()
+    res['total_pnl'] = trades.pnl.sum()
+    res['total_net_pnl'] = trades.net_pnl.sum()
+    res['pnl_per_trade'] = trades.pnl.mean()
+    res['net_pnl_per_trade'] = trades.net_pnl.mean()
+    res['n_trades'] = trades.shape[0]
+    res['n_trades_per_day'] = res['n_trades'] / len(set(trades.date))
+    res['std_pnl'] = trades.pnl.std()
+    res['std_net_pnl'] = trades.net_pnl.std()
+    return pd.Series(res, name='value')
