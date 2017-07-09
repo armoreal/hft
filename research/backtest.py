@@ -79,6 +79,7 @@ thresholds = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 file_path = os.path.join(data_path, 'backtest', product + '_by_hldg_thld')
 
 for hldg in holding_periods:
+    print('Compute pnl for Holding period = ' + str(hldg))
     by_thld_table = pd.DataFrame()
     config['holding_period'] = hldg
     for thld in thresholds:
