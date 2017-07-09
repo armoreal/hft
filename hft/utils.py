@@ -3,13 +3,18 @@ Utility functions
 """
 
 import logging
+import numpy as np
 import pandas as pd
 from scipy.stats import mstats
 
 logger = logging.getLogger(__name__)
 
-# array manipulation
-# ------------------
+# array/atom manipulation
+# -----------------------
+
+
+def safe_divide(a, b):
+    return np.nan if b == 0 else a/b
 
 
 def winsorize(array, prob, bound):
