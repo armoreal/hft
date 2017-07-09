@@ -38,6 +38,19 @@ def aggregate(pxall, group, funs, rename_dict=None):
     return agg_px
 
 
+def left_join(df1, df2, key_column):
+    """Left join two pandas data frames. Always replace columns in df1 if also presented in df2
+
+    :param df1: pandas data frame
+    :param df2: pandas data frame
+    :param key_column: list of strings or string
+    :return: pandas data frame
+    """
+    df1 = df1[list(key_column) + df1.columns.difference(df2.columns).tolist()]
+    df = pd.merge(df1, df2, on=key_column, how='left')
+    return df
+
+
 # compute a new column based on a period of data
 # ----------------------------------------------
 
