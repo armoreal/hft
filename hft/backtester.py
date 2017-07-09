@@ -156,15 +156,25 @@ def daily_summary(btdf):
     return daily
 
 
-def summary(btdf):
+def summary(btdf, config):
     trades = btdf[btdf.trade != 0]
     res = dict()
+    res['training_period'] = config['training_period']
+    res['trade_trigger_threshold'] = config['trade_trigger_threshold'][1]
+    res['training_period'] = config['training_period']
+
+    res['n_trades'] = trades.shape[0]
+    res['n_trades_per_day'] = utils.safe_divide(res['n_trades'], len(set(trades.date)))
+
     res['total_pnl'] = trades.pnl.sum()
     res['total_net_pnl'] = trades.net_pnl.sum()
+
     res['pnl_per_trade'] = trades.pnl.mean()
     res['net_pnl_per_trade'] = trades.net_pnl.mean()
-    res['n_trades'] = trades.shape[0]
-    res['n_trades_per_day'] = res['n_trades'] / len(set(trades.date))
-    res['std_pnl'] = trades.pnl.std()
-    res['std_net_pnl'] = trades.net_pnl.std()
+
+    res['net_pnl_per_day'] = utils.safe_divide(res['total_net_pnl'], len(set(trades.date)))
+    res['pnl_per_day'] = utils.safe_divide(res['total_pnl'], len(set(trades.date)))
+
+    res['std_pnl_per_trade'] = trades.pnl.std()
+    res['std_net_pnl_per_trade'] = trades.net_pnl.std()
     return pd.Series(res, name='value')
