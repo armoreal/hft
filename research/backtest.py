@@ -19,7 +19,7 @@ research_path = os.path.join(hft_path, 'research')
 # load enriched data
 # ------------------
 
-product = 'cu'  # switch between cu and zn
+product = 'zn'  # switch between cu and zn
 with open(os.path.join(data_path, 'ticksize.json')) as ticksize_file:
     ticksize_json = json.load(ticksize_file)
 
@@ -84,6 +84,7 @@ for hldg in holding_periods:
     config['holding_period'] = hldg
     for thld in thresholds:
         config['trade_trigger_threshold'] = [-thld, thld]
+        btdf = bt.backtest(px, config)
         btdf = bt.trade(btdf, config)
         btdf = bt.pnl(btdf, config)
         by_thld_table[str(thld)] = bt.summary(btdf)
