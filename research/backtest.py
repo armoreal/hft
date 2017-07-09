@@ -19,7 +19,7 @@ research_path = os.path.join(hft_path, 'research')
 # load enriched data
 # ------------------
 
-product = 'zn'  # switch between cu and zn
+product = 'cu'  # switch between cu and zn
 with open(os.path.join(data_path, 'ticksize.json')) as ticksize_file:
     ticksize_json = json.load(ticksize_file)
 
@@ -64,7 +64,29 @@ config['transaction_fee'] = 0.0001  # 1 bps transaction fee
 # backtesting
 # -----------
 
-backtest = bt.backtest(px, config)
-backtest = bt.trade(backtest, config)
-backtest = bt.pnl(backtest, config)
-bt.save(bt, config)
+btdf = bt.backtest(px, config)
+btdf = bt.trade(btdf, config)
+btdf = bt.pnl(btdf, config)
+bt.save(btdf, config)
+
+trades = btdf[btdf.trade != 0]
+trades.pnl.hist(bins=30)
+
+# pnl vs threshold
+
+holding_periods = [5, 10, 20, 30, 60, 120, 180, 300]
+thresholds = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+file_path = os.path.join(data_path, 'backtest', product + '_by_hldg_thld')
+
+for hldg in holding_periods:
+    by_thld_table = pd.DataFrame()
+    config['holding_period'] = hldg
+    for thld in thresholds:
+        config['trade_trigger_threshold'] = [-thld, thld]
+        btdf = bt.trade(btdf, config)
+        btdf = bt.pnl(btdf, config)
+        by_thld_table[str(thld)] = bt.summary(btdf)
+    by_thld_table = by_thld_table.transpose()
+    file_name = os.path.join(file_path, product + '_' + str(hldg) + '.csv')
+    print('Saving file to ' + file_name)
+    by_thld_table.to_csv(file_name)
