@@ -74,21 +74,34 @@ trades.pnl.hist(bins=30)
 
 # pnl vs threshold
 
+training_periods = [7, 21]
 holding_periods = [5, 10, 20, 30, 60, 120, 180, 300]
-thresholds = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+thresholds = [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0]
 file_path = os.path.join(data_path, 'backtest', product + '_by_hldg_thld')
+res_table = pd.DataFrame()
 
-for hldg in holding_periods:
-    print('Compute pnl for Holding period = ' + str(hldg))
-    by_thld_table = pd.DataFrame()
-    config['holding_period'] = hldg
-    for thld in thresholds:
-        config['trade_trigger_threshold'] = [-thld, thld]
-        btdf = bt.backtest(px, config)
-        btdf = bt.trade(btdf, config)
-        btdf = bt.pnl(btdf, config)
-        by_thld_table[str(thld)] = bt.summary(btdf)
-    by_thld_table = by_thld_table.transpose()
-    file_name = os.path.join(file_path, product + '_' + str(hldg) + '.csv')
-    print('Saving file to ' + file_name)
-    by_thld_table.to_csv(file_name)
+for training_period in training_periods:
+    print('############################################')
+    print('########## training_period = ' + str(training_period) + ' ##########')
+    config['training_period'] = training_period
+    for use_mid in [True, False]:
+        print('############################################')
+        print('########## use_mid = ' + str(use_mid) + ' ##########')
+        config['use_mid'] = use_mid
+        for hldg in holding_periods:
+            print('Compute pnl for Holding period = ' + str(hldg))
+            by_thld_table = pd.DataFrame()
+            config['holding_period'] = hldg
+            btdf = bt.backtest(px, config)
+            for thld in thresholds:
+                config['trade_trigger_threshold'] = [-thld, thld]
+                btdf = bt.trade(btdf, config)
+                btdf = bt.pnl(btdf, config)
+                by_thld_table[str(thld)] = bt.summary(btdf, config)
+            by_thld_table = by_thld_table.transpose()
+            res_table = res_table.append(by_thld_table)
+            # file_name = os.path.join(file_path, product + '_' + str(hldg) + '.csv')
+            # by_thld_table.to_csv(file_name)
+
+file_name = os.path.join(file_path, product + '.csv')
+res_table.to_csv(file_name, index=False)
