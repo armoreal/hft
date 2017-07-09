@@ -161,7 +161,8 @@ def summary(btdf, config):
     res = dict()
     res['training_period'] = config['training_period']
     res['trade_trigger_threshold'] = config['trade_trigger_threshold'][1]
-    res['training_period'] = config['training_period']
+    res['holding_period'] = config['holding_period']
+    res['use_mid'] = config['use_mid']
 
     res['n_trades'] = trades.shape[0]
     res['n_trades_per_day'] = utils.safe_divide(res['n_trades'], len(set(trades.date)))
