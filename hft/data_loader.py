@@ -10,7 +10,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-DATA_PATH = os.path.join(os.environ['HOME'], 'hft', 'SpRawFutureTick')
+DATA_PATH = os.path.join(os.environ['HOME'], 'hft', 'data', 'SpRawFutureTick')
 with open(os.path.join('config', 'data_loader.json')) as data_config_file:
     data_config = json.load(data_config_file)
 COLUMNS = data_config['columns']
