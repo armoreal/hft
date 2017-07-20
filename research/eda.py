@@ -1,16 +1,20 @@
-import numpy as np
-import matplotlib.pylab as plt
+import os
 import logging
+import json
+from datetime import datetime
+import numpy as np
+import pandas as pd
+import matplotlib.pylab as plt
 
 import hft.data_loader as dl
 import hft.utils as utils
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(name)s  %(levelname)s  %(message)s')
-product = 'cu'  # switch between cu and zn
 
 # some random day
 # ---------------
 
+product = 'cu'  # switch between cu and zn
 yyyymmdd = '20131015'
 px = dl.load_active_contract(product, yyyymmdd)
 px.price.plot()
@@ -53,3 +57,60 @@ minutely_px['realized_vol'].plot(title='realized volatility')
 minutely_px[['b1_size', 's1_size']].plot()
 (minutely_px.b1_size - minutely_px.s1_size).plot(title='b1_size - s1_size')
 plt.plot(minutely_px.spread, minutely_px.realized_vol, 'o')
+
+# adopt new data loading
+# ----------------------
+
+hft_path = os.path.join(os.environ['HOME'], 'dropbox', 'hft')
+data_path = os.path.join(hft_path, 'data')
+research_path = os.path.join(hft_path, 'research')
+
+product = 'cu'  # switch between cu and zn
+with open(os.path.join(data_path, 'ticksize.json')) as ticksize_file:
+    ticksize_json = json.load(ticksize_file)
+tick_size = ticksize_json[product]
+px = pd.read_pickle(os.path.join(data_path, product+'.pkl'))
+
+if product == 'zn':
+    # remove unusual day for zn
+    px20131031 = px[px.date == '2013-10-31']
+    px = px[px.date != '2013-10-31']
+
+dates = list(set(px.date.tolist()))
+dates.sort()
+n_dates = len(dates)
+format_dates = [datetime.strptime(x, '%Y-%m-%d') for x in dates]
+
+# break tick move
+# ---------------
+
+break_df = pd.DataFrame()
+break_df['date'] = dates
+break_df['break1'] = np.repeat(np.nan, n_dates)
+break_df['break2'] = np.repeat(np.nan, n_dates)
+for date in dates:
+    dailyPx = px[px.date == date]
+    break1 = dailyPx.loc[dailyPx.second >= 5400, 'mid'].values[0] - \
+        dailyPx.loc[dailyPx.second <= 4500, 'mid'].values[-1]
+    break2 = dailyPx.loc[dailyPx.second >= 16200, 'mid'].values[0] - \
+        dailyPx.loc[dailyPx.second <= 9000, 'mid'].values[-1]
+    break_df.loc[break_df.date == date, 'break1'] = break1 / tick_size
+    break_df.loc[break_df.date == date, 'break2'] = break2 / tick_size
+
+break_df.break1.hist()
+break_df.break2.hist()
+
+# daily realized volatility
+# -------------------------
+
+rvdf = pd.DataFrame()
+rvdf['date'] = dates
+rvdf['rv'] = np.repeat(np.nan, n_dates)
+for date in dates:
+    dailyPx = px.loc[px.date == date, 'mid']
+    mid_diff = (dailyPx - dailyPx.shift(1)).values / tick_size
+    rvdf.loc[rvdf.date == date, 'rv'] = np.sqrt(np.nansum(mid_diff*mid_diff) / len(mid_diff))
+
+rvdf['format_date'] = format_dates
+rvdf.set_index('format_date', inplace=True)
+rvdf.rv.plot()
