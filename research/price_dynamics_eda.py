@@ -7,6 +7,8 @@ import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s  %(name)s  %(levelname)s  %(message)s')
 
+# load data
+# ---------
 
 hft_path = os.path.join(os.environ['HOME'], 'dropbox', 'hft')
 data_path = os.path.join(hft_path, 'data')
@@ -28,74 +30,50 @@ dates.sort()
 n_dates = len(dates)
 format_dates = [datetime.strptime(x, '%Y-%m-%d') for x in dates]
 
-# break tick move
-# ---------------
-
-break_df = pd.DataFrame()
-break_df['date'] = dates
-break_df['break1'] = np.repeat(np.nan, n_dates)
-break_df['break2'] = np.repeat(np.nan, n_dates)
-for date in dates:
-    dailyPx = px[px.date == date]
-    break1 = dailyPx.loc[dailyPx.second >= 5400, 'mid'].values[0] - \
-        dailyPx.loc[dailyPx.second <= 4500, 'mid'].values[-1]
-    break2 = dailyPx.loc[dailyPx.second >= 16200, 'mid'].values[0] - \
-        dailyPx.loc[dailyPx.second <= 9000, 'mid'].values[-1]
-    break_df.loc[break_df.date == date, 'break1'] = break1 / tick_size
-    break_df.loc[break_df.date == date, 'break2'] = break2 / tick_size
-
-break_df.break1.hist()
-break_df.break2.hist()
-
-# daily realized volatility
-# -------------------------
-
-rvdf = pd.DataFrame()
-rvdf['date'] = dates
-rvdf['rv'] = np.repeat(np.nan, n_dates)
-for date in dates:
-    dailyPx = px.loc[px.date == date, 'mid']
-    mid_diff = (dailyPx - dailyPx.shift(1)).values / tick_size
-    rvdf.loc[rvdf.date == date, 'rv'] = np.sqrt(np.nansum(mid_diff*mid_diff) / len(mid_diff))
-
-rvdf['format_date'] = format_dates
-rvdf.set_index('format_date', inplace=True)
-rvdf.rv.plot()
-
-# daily high - low
+# daily statistics
 # ----------------
-
-df = pd.DataFrame()
-df['date'] = dates
-df['hml'] = np.repeat(np.nan, n_dates)
-for date in dates:
-    dailyPx = px.loc[px.date == date, 'mid']
-    hml = (dailyPx.max() - dailyPx.min()) / tick_size
-    df.loc[df.date == date, 'hml'] = hml
-
-df['format_date'] = format_dates
-df.set_index('format_date', inplace=True)
-df.hml.plot()
-
-# daily winning rate
-# ------------------
 
 df = pd.DataFrame()
 df['date'] = dates
 df['win'] = np.repeat(np.nan, n_dates)
 df['draw'] = np.repeat(np.nan, n_dates)
 df['lose'] = np.repeat(np.nan, n_dates)
+df['pnl'] = np.repeat(np.nan, n_dates)
+df['rv'] = np.repeat(np.nan, n_dates)
+df['hml'] = np.repeat(np.nan, n_dates)
+df['break1'] = np.repeat(np.nan, n_dates)
+df['break2'] = np.repeat(np.nan, n_dates)
+
 for date in dates:
     dailyPx = px.loc[px.date == date, 'mid']
+    seconds = px.loc[px.date == date, 'second']
     mid_diff = (dailyPx - dailyPx.shift(1)).values / tick_size
     mid_diff = mid_diff[1:]
     win = np.sum(mid_diff > 0) / len(mid_diff)
     lose = np.sum(mid_diff < 0) / len(mid_diff)
     draw = np.sum(mid_diff == 0) / len(mid_diff)
+    pnl = np.sum(mid_diff)
+    hml = (dailyPx.max() - dailyPx.min()) / tick_size
     df.loc[df.date == date, 'win'] = win
     df.loc[df.date == date, 'draw'] = draw
     df.loc[df.date == date, 'lose'] = lose
+    df.loc[df.date == date, 'pnl'] = pnl
+    df.loc[df.date == date, 'rv'] = np.sqrt(np.nansum(mid_diff * mid_diff) / len(mid_diff))
+    df.loc[df.date == date, 'hml'] = hml
+
+    break1 = dailyPx[seconds >= 5400].values[0] - dailyPx[seconds <= 4500].values[-1]
+    break2 = dailyPx[seconds >= 16200].values[0] - dailyPx[seconds <= 9000].values[-1]
+    df.loc[df.date == date, 'break1'] = break1 / tick_size
+    df.loc[df.date == date, 'break2'] = break2 / tick_size
 
 df['format_date'] = format_dates
 df.set_index('format_date', inplace=True)
+
 df[['win', 'draw', 'lose']].plot()
+df[['win', 'lose']].plot()
+(df.win - df.lose).plot()
+df.pnl.plot()
+df.rv.plot()
+df.hml.plot()
+df.break1.hist()
+df.break2.hist()
