@@ -200,8 +200,8 @@ df[['mid_acf_1', 'mid_acf_2', 'mid_pacf_1', 'mid_pacf_2']].plot()
 df[['diff_acf_1', 'diff_acf_2', 'diff_pacf_1', 'diff_pacf_2']].plot()
 
 
-# fit O-U process
-# ---------------
+# fit daily O-U process
+# ---------------------
 
 period = 60
 df = pd.DataFrame()
@@ -214,6 +214,9 @@ df['s0'] = np.repeat(np.nan, n_dates)
 df['s1'] = np.repeat(np.nan, n_dates)
 df['t0'] = np.repeat(np.nan, n_dates)
 df['t1'] = np.repeat(np.nan, n_dates)
+df['kappa'] = np.repeat(np.nan, n_dates)
+df['m'] = np.repeat(np.nan, n_dates)
+df['sigma'] = np.repeat(np.nan, n_dates)
 
 for date in dates:
     print('Fitting O-U process on date ' + date)
@@ -223,29 +226,76 @@ for date in dates:
     seconds = dailyPx.second
     prices = dailyPx.mid.values
 
-    n = len(prices)-1
     y = prices[1:]
-    x = np.array([[1] * n, list(prices[:n])]).transpose()
+    n = len(y)
+    x = prices[:-1].reshape(n, 1)
     regr = linear_model.LinearRegression()
     regr.fit(x, y)
 
-    df.loc[df.date == date, 'b0'] = regr.coef_[0]
-    df.loc[df.date == date, 'b1'] = regr.coef_[1]
+    b0 = regr.intercept_
+    b1 = regr.coef_.item()
+    df.loc[df.date == date, 'b0'] = b0
+    df.loc[df.date == date, 'b1'] = b1
     mse = np.sum((regr.predict(x) - y) ** 2) / (n-2)
     df.loc[df.date == date, 'mse'] = mse
     df.loc[df.date == date, 'rsq'] = regr.score(x, y)
-    ssq = np.sum((x[:, 1] - np.mean(x[:, 1])) ** 2)
-    s1 = np.sqrt(mse/ssq)
-    s0 = np.sqrt(mse/ssq*np.mean(x[:, 1]**2))
+    ssq = np.sum((x - np.mean(x)) ** 2)
+    s1 = np.sqrt(mse / ssq)
+    s0 = np.sqrt(mse / ssq * np.mean(x ** 2))
     df.loc[df.date == date, 's0'] = s0
     df.loc[df.date == date, 's1'] = s1
-    df.loc[df.date == date, 't0'] = regr.coef_[0] / s0
-    df.loc[df.date == date, 't1'] = regr.coef_[1] / s1
+    df.loc[df.date == date, 't0'] = b0 / s0
+    df.loc[df.date == date, 't1'] = b1 / s1
+
+    kappa = -np.log(b1) / period
+    df.loc[df.date == date, 'kappa'] = kappa
+    df.loc[df.date == date, 'm'] = b0 / (1 - b1)
+    df.loc[df.date == date, 'sigma'] = np.sqrt(mse * 2 * kappa / (1 - b1**2))
 
 df['format_date'] = format_dates
 df.set_index('format_date', inplace=True)
 
 df[['rsq']].plot()
 df[['mse']].plot()
-df[['b0', 'b1']].plot()
+df[['b0']].plot()
+df[['b1']].plot()
 df[['t0', 't1']].plot()
+
+df.kappa.plot()
+df.m.plot()
+df.sigma.plot()
+
+# aggregate all the tick move and fit OU process
+# ----------------------------------------------
+
+period = 60
+price_delta = []
+for date in dates:
+    print('Gathering prices on ' + date)
+    dailyPx = px[px.date == date]
+    dailyPx = utils.get_period_px(dailyPx, period)
+    prices = dailyPx.mid.values
+    delta = (prices[1:] - prices[:-1]) / tick_size
+    price_delta += list(delta)
+
+price_delta = np.array(price_delta)
+prices = np.cumsum(price_delta)
+y = prices[1:]
+n = len(y)
+x = prices[:-1].reshape(n, 1)
+regr = linear_model.LinearRegression()
+regr.fit(x, y)
+b0 = regr.intercept_
+b1 = regr.coef_.item()
+mse = np.sum((regr.predict(x) - y) ** 2) / (n-2)
+rsq = regr.score(x, y)
+ssq = np.sum((x - np.mean(x)) ** 2)
+s1 = np.sqrt(mse/ssq)
+s0 = np.sqrt(mse / ssq * np.mean(x ** 2))
+t0 = b0 / s0
+t1 = b1 / s1
+
+kappa = -np.log(b1) / period
+m = b0 / (1 - b1)
+sigma = np.sqrt(mse * 2 * kappa / (1 - b1 ** 2))
+
