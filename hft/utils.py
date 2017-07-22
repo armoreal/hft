@@ -31,6 +31,19 @@ def winsorize(array, prob, bound):
     return winsorized_array.values
 
 
+def get_period_px(px, period):
+    """Return period price (minutely, five-minutely etc)
+
+    :param px: original px data frame, must have column mid
+    :param period: integer, in seconds, to get minutely return, set period=60
+    :return: numpy array of period prices
+    """
+    period_px = px.groupby(pd.cut(px['second'], np.arange(0, 21600, period))).last()
+    period_px = period_px[~period_px.time.isin(['10:30:00', '13:30:00'])]
+    period_px = period_px[~np.isnan(period_px.second)]
+    return period_px
+
+
 # table aggregation
 # -----------------
 
