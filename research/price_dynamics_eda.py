@@ -35,6 +35,19 @@ dates.sort()
 n_dates = len(dates)
 format_dates = [datetime.strptime(x, '%Y-%m-%d') for x in dates]
 
+# save minutely price
+# -------------------
+
+period = 60
+mpx = pd.DataFrame()
+for date in dates:
+    print('Gathering prices on ' + date)
+    dailyPx = px[px.date == date]
+    dailyPx = utils.get_period_px(dailyPx, period)
+    mpx = mpx.append(dailyPx)
+mpx = mpx[['date', 'second', 'mid', 'b1', 's1', 'b1_size', 's1_size', 'spread', 'price', 'qty', 'volume', 'open_interest']]
+mpx.reset_index(drop=True, inplace=True)
+mpx.to_csv('mpx.csv', index=False)
 
 # daily statistics
 # ----------------
