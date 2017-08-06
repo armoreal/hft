@@ -203,11 +203,13 @@ def summary(btdf, config):
     res['total_pnl'] = trades.pnl.sum()
     res['total_net_pnl'] = trades.net_pnl.sum()
 
-    res['pnl_per_trade'] = trades.pnl.mean()
-    res['net_pnl_per_trade'] = trades.net_pnl.mean()
+    res['avg_pnl_per_trade'] = trades.pnl.mean()
+    res['avg_net_pnl_per_trade'] = trades.net_pnl.mean()
+    res['med_pnl_per_trade'] = trades.pnl.median()
+    res['med_net_pnl_per_trade'] = trades.net_pnl.median()
 
-    res['net_pnl_per_day'] = utils.safe_divide(res['total_net_pnl'], res['n_trading_days'])
-    res['pnl_per_day'] = utils.safe_divide(res['total_pnl'], res['n_trading_days'])
+    res['avg_net_pnl_per_day'] = utils.safe_divide(res['total_net_pnl'], res['n_trading_days'])
+    res['avg_pnl_per_day'] = utils.safe_divide(res['total_pnl'], res['n_trading_days'])
 
     res['std_pnl_per_trade'] = trades.pnl.std()
     res['std_net_pnl_per_trade'] = trades.net_pnl.std()
