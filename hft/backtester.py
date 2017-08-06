@@ -82,7 +82,7 @@ def backtest(px, config):
         px_i = px.loc[px.date == date, columns + features + [y_name]].copy()
         x_new = px_i[features]
         x_new = x_new.fillna(x_new.median())
-        alpha = model.predict(x_new)
+        alpha = model.predict(X=x_new)
         px_i['alpha'] = alpha
         btdf = btdf.append(px_i)
     logger.info('Finish backtesting')
@@ -99,7 +99,7 @@ def trade(btdf, config):
     return btdf
 
 
-def get_close_second(btdf, config):
+def get_fixed_period_close_second(btdf, config):
     btdf['close_second'] = btdf.second + config['holding_period']
     dates = list(set(btdf.date))
     dates.sort()
@@ -113,13 +113,38 @@ def get_close_second(btdf, config):
     return matched_close_second
 
 
+def dynamic_hold(bti, config, i):
+    mid_change = bti.mid - bti.mid[i]
+    cond = (mid_change >= config['unwinding_tick_move_upper_bound']) |\
+           (mid_change <= config['unwinding_tick_move_lower_bound']) & (mid_change.index > i)
+    idx = cond.index[cond]
+    idx = idx[0] if len(idx) > 0 else len(idx)-1
+    return idx
+
+
+def get_dynamic_period_close_second(btdf, config):
+    dates = list(set(btdf.date))
+    dates.sort()
+    matched_close_second = []
+    for date in dates:
+        logger.debug('Getting dynamic holding end time on %s', date)
+        bti = btdf[btdf.date == date]
+        close_index = [np.nan if bti.trade[i] == 0 else dynamic_hold(bti, config, i) for i in bti.index]
+        matched_close_second_i = bti.second[close_index].tolist()
+        matched_close_second.extend(matched_close_second_i)
+    return matched_close_second
+
+
 def pnl(btdf, config):
     logger.info('Computing PnL...')
     if config['use_mid']:
         btdf['open_price'] = btdf.mid
     else:
         btdf['open_price'] = (btdf.trade > 0) * btdf.s1 + (btdf.trade < 0) * btdf.b1
-    btdf['matched_close_second'] = get_close_second(btdf, config)
+    if config['dynamic_unwinding']:
+        btdf['matched_close_second'] = get_dynamic_period_close_second(btdf, config)
+    else:
+        btdf['matched_close_second'] = get_fixed_period_close_second(btdf, config)
     dummy_bt = btdf[['date', 'second', 'b1', 's1', 'mid']].copy()
     dummy_bt.columns = ['date', 'matched_close_second', 'close_b1', 'close_s1', 'close_mid']
     btdf = utils.left_join(btdf, dummy_bt, ['date', 'matched_close_second'])
