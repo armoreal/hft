@@ -40,7 +40,7 @@ config['data_path'] = data_path
 config['start_date'] = '2013-10-05'
 
 # model specifics
-config['training_period'] = 3  # days
+config['training_period'] = 1  # days
 config['feature_column'] = ['order_imbalance_ratio', 'order_flow_imbalance', 'tick_move']
 config['feature_freq'] = [1, 2, 5, 10, 20, 30, 60, 120, 180, 300]
 config['feature_winsorize_prob'] = {'order_imbalance_ratio': [0.0, 0.0],
@@ -54,12 +54,12 @@ config['response_winsorize_prob'] = [0, 0]
 config['response_winsorize_bound'] = [-5, 5]
 
 # open/close/hold condition
-config['holding_period'] = 60  # seconds
+config['holding_period'] = 120  # seconds
 config['dynamic_unwinding'] = True
 config['unwinding_tick_move_upper_bound'] = 3
-config['unwinding_tick_move_lower_bound'] = -2
-config['trade_trigger_threshold'] = [-0.4, 0.4]
-config['start_second'] = 180
+config['unwinding_tick_move_lower_bound'] = -3
+config['trade_trigger_threshold'] = [-1.5, 1.5]
+config['start_second'] = 120
 config['end_second'] = 21420
 
 # pnl
@@ -76,9 +76,11 @@ btdf = bt.pnl(btdf, config)
 
 trades = btdf[btdf.trade != 0]
 bt.summary(btdf, config)
+bt.daily_summary(btdf)
 trades.pnl.hist(bins=30)
 
 # pnl vs threshold - fixed period
+# -------------------------------
 
 training_periods = [1, 5]
 holding_periods = [20, 30, 60, 120, 180, 300]
@@ -113,6 +115,7 @@ file_name = os.path.join(file_path, product + '.csv')
 res_table.to_csv(file_name, index=False)
 
 # pnl vs threshold - dynamic holding
+# ----------------------------------
 
 training_periods = [1, 5]
 thresholds = [0.5, 1.0, 1.5]
@@ -149,3 +152,50 @@ for training_period in training_periods:
 
 file_name = os.path.join(file_path, product + '_dynamic_holding.csv')
 res_table.to_csv(file_name, index=False)
+
+# exam why positive pnl
+# ---------------------
+
+config = dict()
+
+# general configuration
+config['name'] = product + '_1'
+config['data_path'] = data_path
+config['start_date'] = '2013-10-05'
+
+# model specifics
+config['training_period'] = 1  # days
+config['feature_column'] = ['order_imbalance_ratio', 'order_flow_imbalance', 'tick_move']
+config['feature_freq'] = [1, 2, 5, 10, 20, 30, 60, 120, 180, 300]
+config['feature_winsorize_prob'] = {'order_imbalance_ratio': [0.0, 0.0],
+                                    'order_flow_imbalance': [0.005, 0.005],
+                                    'tick_move': [0, 0]}
+config['feature_winsorize_bound'] = {'order_imbalance_ratio': [-np.inf, np.inf],
+                                     'order_flow_imbalance': [-np.inf, np.inf],
+                                     'tick_move': [-10, 10]}
+config['response_column'] = 'tick_move'
+config['response_winsorize_prob'] = [0, 0]
+config['response_winsorize_bound'] = [-5, 5]
+
+# open/close/hold condition
+config['holding_period'] = 120  # seconds
+config['dynamic_unwinding'] = True
+config['unwinding_tick_move_upper_bound'] = 3
+config['unwinding_tick_move_lower_bound'] = -3
+config['trade_trigger_threshold'] = [-1.5, 1.5]
+config['start_second'] = 120
+config['end_second'] = 21420
+
+# pnl
+config['use_mid'] = False  # if False, use touch price
+config['transaction_fee'] = 0.0001  # 1 bps transaction fee
+
+# backtesting
+
+btdf = bt.backtest(px, config)
+btdf = bt.trade(btdf, config)
+btdf = bt.pnl(btdf, config)
+trades = btdf[btdf.trade != 0]
+bt.summary(btdf, config)
+bt.daily_summary(btdf)
+t = trades[trades.date == '2013-12-26']
