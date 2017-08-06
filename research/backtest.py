@@ -24,8 +24,10 @@ with open(os.path.join(data_path, 'ticksize.json')) as ticksize_file:
     ticksize_json = json.load(ticksize_file)
 
 px = pd.read_pickle(os.path.join(data_path, product+'_enriched.pkl'))
-px20131031 = px[px.date == '2013-10-31']
-px = px[px.date != '2013-10-31']
+if product == 'zn':
+    # remove unusual day for zn
+    px20131031 = px[px.date == '2013-10-31']
+    px = px[px.date != '2013-10-31']
 
 # configuration
 # -------------
@@ -38,7 +40,7 @@ config['data_path'] = data_path
 config['start_date'] = '2013-10-05'
 
 # model specifics
-config['training_period'] = 21  # days
+config['training_period'] = 3  # days
 config['feature_column'] = ['order_imbalance_ratio', 'order_flow_imbalance', 'tick_move']
 config['feature_freq'] = [1, 2, 5, 10, 20, 30, 60, 120, 180, 300]
 config['feature_winsorize_prob'] = {'order_imbalance_ratio': [0.0, 0.0],
@@ -52,7 +54,10 @@ config['response_winsorize_prob'] = [0, 0]
 config['response_winsorize_bound'] = [-5, 5]
 
 # open/close/hold condition
-config['holding_period'] = 10  # seconds
+config['holding_period'] = 60  # seconds
+config['dynamic_unwinding'] = True
+config['unwinding_tick_move_upper_bound'] = 3
+config['unwinding_tick_move_lower_bound'] = -2
 config['trade_trigger_threshold'] = [-0.4, 0.4]
 config['start_second'] = 180
 config['end_second'] = 21420
@@ -67,16 +72,17 @@ config['transaction_fee'] = 0.0001  # 1 bps transaction fee
 btdf = bt.backtest(px, config)
 btdf = bt.trade(btdf, config)
 btdf = bt.pnl(btdf, config)
-bt.save(btdf, config)
+# bt.save(btdf, config)
 
 trades = btdf[btdf.trade != 0]
+bt.summary(btdf, config)
 trades.pnl.hist(bins=30)
 
-# pnl vs threshold
+# pnl vs threshold - fixed period
 
-training_periods = [7, 21]
-holding_periods = [5, 10, 20, 30, 60, 120, 180, 300]
-thresholds = [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0]
+training_periods = [1, 5]
+holding_periods = [20, 30, 60, 120, 180, 300]
+thresholds = [0.5, 1.0, 1.5, 2.0]
 file_path = os.path.join(data_path, 'backtest', product + '_by_hldg_thld')
 res_table = pd.DataFrame()
 
@@ -104,4 +110,42 @@ for training_period in training_periods:
             # by_thld_table.to_csv(file_name)
 
 file_name = os.path.join(file_path, product + '.csv')
+res_table.to_csv(file_name, index=False)
+
+# pnl vs threshold - dynamic holding
+
+training_periods = [1, 5]
+thresholds = [0.5, 1.0, 1.5]
+holding_periods = [30, 60, 120, 300]
+unwinding_upper_bounds = [3, 3, 5, 5]
+unwinding_lower_bounds = [-3, -2, -5, -3]
+file_path = os.path.join(data_path, 'backtest')
+res_table = pd.DataFrame()
+
+for training_period in training_periods:
+    print('############################################')
+    print('########## training_period = ' + str(training_period) + ' ##########')
+    config['training_period'] = training_period
+    for hldg in holding_periods:
+        print('############################################')
+        print('########## Holding_period = ' + str(hldg) + ' ##########')
+        config['holding_period'] = hldg
+        by_thld_table = pd.DataFrame()
+        btdf = bt.backtest(px, config)
+        for i_unwinding in range(len(unwinding_lower_bounds)):
+            print('Unwinding upper bound = ' + str(unwinding_upper_bounds[i_unwinding]))
+            config['unwinding_tick_move_upper_bound'] = unwinding_upper_bounds[i_unwinding]
+            config['unwinding_tick_move_lower_bound'] = unwinding_lower_bounds[i_unwinding]
+            for thld in thresholds:
+                config['trade_trigger_threshold'] = [-thld, thld]
+                btdf = bt.trade(btdf, config)
+                for use_mid in [True, False]:
+                    config['use_mid'] = use_mid
+                    btdf = bt.pnl(btdf, config)
+                    by_thld_table = bt.summary(btdf, config)
+                    res_table = res_table.append(by_thld_table, ignore_index=True)
+            # file_name = os.path.join(file_path, product + '_' + str(hldg) + '.csv')
+            # by_thld_table.to_csv(file_name)
+
+file_name = os.path.join(file_path, product + '_dynamic_holding.csv')
 res_table.to_csv(file_name, index=False)
