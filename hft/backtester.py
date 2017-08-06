@@ -115,8 +115,8 @@ def get_fixed_period_close_second(btdf, config):
 
 def dynamic_hold(bti, config, i):
     mid_change = bti.mid - bti.mid[i]
-    cond = (mid_change >= config['unwinding_tick_move_upper_bound']) |\
-           (mid_change <= config['unwinding_tick_move_lower_bound']) & (mid_change.index > i)
+    cond = ((mid_change >= config['unwinding_tick_move_upper_bound']) |
+           (mid_change <= config['unwinding_tick_move_lower_bound'])) & (mid_change.index > i)
     idx = cond.index[cond]
     idx = idx[0] if len(idx) > 0 else len(idx)-1
     return idx
@@ -207,6 +207,11 @@ def summary(btdf, config):
     res['avg_net_pnl_per_trade'] = trades.net_pnl.mean()
     res['med_pnl_per_trade'] = trades.pnl.median()
     res['med_net_pnl_per_trade'] = trades.net_pnl.median()
+
+    res['avg_pnl_per_winning_trade'] = trades[trades.pnl > 0].pnl.mean()
+    res['avg_pnl_per_losing_trade'] = trades[trades.pnl < 0].pnl.mean()
+    res['avg_net_pnl_per_winning_trade'] = trades[trades.net_pnl > 0].net_pnl.mean()
+    res['avg_net_pnl_per_losing_trade'] = trades[trades.net_pnl < 0].net_pnl.mean()
 
     res['avg_net_pnl_per_day'] = utils.safe_divide(res['total_net_pnl'], res['n_trading_days'])
     res['avg_pnl_per_day'] = utils.safe_divide(res['total_pnl'], res['n_trading_days'])
