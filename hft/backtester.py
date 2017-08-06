@@ -188,10 +188,17 @@ def summary(btdf, config):
     res['trade_trigger_threshold'] = config['trade_trigger_threshold'][1]
     res['holding_period'] = config['holding_period']
     res['use_mid'] = config['use_mid']
+    res['unwinding_tick_move_upper_bound'] = config['unwinding_tick_move_upper_bound']
+    res['unwinding_tick_move_lower_bound'] = config['unwinding_tick_move_lower_bound']
 
     res['n_trades'] = trades.shape[0]
     res['n_trading_days'] = len(set(trades.date))
     res['n_trades_per_day'] = utils.safe_divide(res['n_trades'], res['n_trading_days'])
+
+    res['winning_rate'] = sum(trades.pnl > 0) / trades.shape[0]
+    res['losing_rate'] = sum(trades.pnl < 0) / trades.shape[0]
+    res['net_winning_rate'] = sum(trades.net_pnl > 0) / trades.shape[0]
+    res['net_losing_rate'] = sum(trades.net_pnl < 0) / trades.shape[0]
 
     res['total_pnl'] = trades.pnl.sum()
     res['total_net_pnl'] = trades.net_pnl.sum()
