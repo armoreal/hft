@@ -118,7 +118,7 @@ def dynamic_hold(bti, config, i):
     cond = ((tick_change >= config['unwinding_tick_move_upper_bound']) |
            (tick_change <= config['unwinding_tick_move_lower_bound'])) & (tick_change.index > i)
     idx = cond.index[cond]
-    idx = idx[0] if len(idx) > 0 else len(idx)-1
+    idx = idx[0] if len(idx) > 0 else bti.index[-1]
     return idx
 
 
