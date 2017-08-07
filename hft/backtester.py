@@ -218,4 +218,8 @@ def summary(btdf, config):
 
     res['std_pnl_per_trade'] = trades.pnl.std()
     res['std_net_pnl_per_trade'] = trades.net_pnl.std()
+
+    res['corr_alpha_pnl'] = np.corrcoef(trades.alpha, trades.pnl)[0, 1]
+    res['corr_alpha_net_pnl'] = np.corrcoef(trades.alpha, trades.pnl)[0, 1]
+
     return pd.Series(res, name='value')
