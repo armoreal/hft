@@ -114,9 +114,9 @@ def get_fixed_period_close_second(btdf, config):
 
 
 def dynamic_hold(bti, config, i):
-    mid_change = bti.mid - bti.mid[i]
-    cond = ((mid_change >= config['unwinding_tick_move_upper_bound']) |
-           (mid_change <= config['unwinding_tick_move_lower_bound'])) & (mid_change.index > i)
+    tick_change = (bti.mid - bti.mid[i]) / config['tick_size']
+    cond = ((tick_change >= config['unwinding_tick_move_upper_bound']) |
+           (tick_change <= config['unwinding_tick_move_lower_bound'])) & (tick_change.index > i)
     idx = cond.index[cond]
     idx = idx[0] if len(idx) > 0 else len(idx)-1
     return idx
