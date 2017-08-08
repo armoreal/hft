@@ -59,7 +59,17 @@ def fit(train, features, config):
     y = regr_data[y_column].values
     regr = linear_model.LinearRegression(fit_intercept=False)
     regr.fit(x, y)
-    return regr
+    n = len(y)
+    p = len(features) + regr.fit_intercept
+    mse = np.sum((regr.predict(x) - y) ** 2) / (n-p)
+    se = np.sqrt(np.diagonal(mse * np.linalg.inv(np.dot(x.T, x))))
+    stats = {'rsq': regr.score(x, y),
+             'beta': regr.coef_,
+             'tstat': regr.coef_ / se,
+             'mse': mse,
+             'df_1': p-1,
+             'df_2': n-p}
+    return regr, stats
 
 
 def backtest(px, config):
@@ -70,6 +80,7 @@ def backtest(px, config):
     btdf = pd.DataFrame()
     columns = ['dt', 'date', 'time', 'price', 'qty', 'volume', 'open_interest',
                'b1', 'b1_size', 's1', 's1_size', 'mid', 'second']
+    fitting_stats = pd.DataFrame(columns=['date', 'rsq', 'beta', 'tstat', 'mse'])
     for i in range(config['training_period'], len(dates)):
         date = dates[i]
         logger.info('Backtesting on %s', date)
@@ -77,7 +88,9 @@ def backtest(px, config):
         train = px[(px.date >= dates[i-config['training_period']]) & (px.date < date)].copy()
         features = select_feature(train, config)
         logger.debug('Fitting model')
-        model = fit(train, features, config)
+        model, stats = fit(train, features, config)
+        stats['date'] = date
+        fitting_stats = fitting_stats.append(stats, ignore_index=True)
         logger.debug('Predicting future return')
         px_i = px.loc[px.date == date, columns + features + [y_name]].copy()
         x_new = px_i[features]
@@ -86,7 +99,7 @@ def backtest(px, config):
         px_i['alpha'] = alpha
         btdf = btdf.append(px_i)
     logger.info('Finish backtesting')
-    return btdf
+    return btdf, fitting_stats
 
 
 def trade(btdf, config):
