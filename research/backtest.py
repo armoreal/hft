@@ -38,6 +38,7 @@ config = dict()
 config['name'] = product + '_1'
 config['data_path'] = data_path
 config['start_date'] = '2013-10-05'
+config['tick_size'] = ticksize_json[product]
 
 # model specifics
 config['training_period'] = 1  # days
@@ -100,7 +101,7 @@ for training_period in training_periods:
             print('Compute pnl for Holding period = ' + str(hldg))
             by_thld_table = pd.DataFrame()
             config['holding_period'] = hldg
-            btdf = bt.backtest(px, config)
+            btdf, _ = bt.backtest(px, config)
             for thld in thresholds:
                 config['trade_trigger_threshold'] = [-thld, thld]
                 btdf = bt.trade(btdf, config)
@@ -119,11 +120,12 @@ res_table.to_csv(file_name, index=False)
 
 training_periods = [1, 5]
 thresholds = [0.5, 1.0, 1.5]
-holding_periods = [30, 60, 120, 300]
+holding_periods = [60, 120, 300]
 unwinding_upper_bounds = [3, 3, 5, 5]
 unwinding_lower_bounds = [-3, -2, -5, -3]
 file_path = os.path.join(data_path, 'backtest')
 res_table = pd.DataFrame()
+fitting_stats = pd.DataFrame()
 
 for training_period in training_periods:
     print('############################################')
@@ -134,7 +136,8 @@ for training_period in training_periods:
         print('########## Holding_period = ' + str(hldg) + ' ##########')
         config['holding_period'] = hldg
         by_thld_table = pd.DataFrame()
-        btdf = bt.backtest(px, config)
+        btdf, stats = bt.backtest(px, config)
+        fitting_stats = fitting_stats.append(stats)
         for i_unwinding in range(len(unwinding_lower_bounds)):
             print('Unwinding upper bound = ' + str(unwinding_upper_bounds[i_unwinding]))
             config['unwinding_tick_move_upper_bound'] = unwinding_upper_bounds[i_unwinding]
@@ -150,8 +153,10 @@ for training_period in training_periods:
             # file_name = os.path.join(file_path, product + '_' + str(hldg) + '.csv')
             # by_thld_table.to_csv(file_name)
 
-file_name = os.path.join(file_path, product + '_dynamic_holding.csv')
-res_table.to_csv(file_name, index=False)
+res_file_name = os.path.join(file_path, product + '_dynamic_holding.csv')
+fit_file_name = os.path.join(file_path, product + '_dynamic_holding_fitting.csv')
+res_table.to_csv(res_file_name, index=False)
+fitting_stats.to_csv(fit_file_name, index=False)
 
 # exam why positive pnl
 # ---------------------
@@ -162,6 +167,7 @@ config = dict()
 config['name'] = product + '_1'
 config['data_path'] = data_path
 config['start_date'] = '2013-10-05'
+config['tick_size'] = ticksize_json[product]
 
 # model specifics
 config['training_period'] = 1  # days
@@ -178,21 +184,21 @@ config['response_winsorize_prob'] = [0, 0]
 config['response_winsorize_bound'] = [-5, 5]
 
 # open/close/hold condition
-config['holding_period'] = 120  # seconds
+config['holding_period'] = 60  # seconds
 config['dynamic_unwinding'] = True
-config['unwinding_tick_move_upper_bound'] = 3
-config['unwinding_tick_move_lower_bound'] = -3
+config['unwinding_tick_move_upper_bound'] = 5
+config['unwinding_tick_move_lower_bound'] = -5
 config['trade_trigger_threshold'] = [-1.5, 1.5]
 config['start_second'] = 120
 config['end_second'] = 21420
 
 # pnl
-config['use_mid'] = False  # if False, use touch price
+config['use_mid'] = True  # if False, use touch price
 config['transaction_fee'] = 0.0001  # 1 bps transaction fee
 
 # backtesting
 
-btdf = bt.backtest(px, config)
+btdf, stats = bt.backtest(px, config)
 btdf = bt.trade(btdf, config)
 btdf = bt.pnl(btdf, config)
 trades = btdf[btdf.trade != 0]
