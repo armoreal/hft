@@ -80,7 +80,7 @@ def backtest(px, config):
     btdf = pd.DataFrame()
     columns = ['dt', 'date', 'time', 'price', 'qty', 'volume', 'open_interest',
                'b1', 'b1_size', 's1', 's1_size', 'mid', 'second']
-    fitting_stats = pd.DataFrame(columns=['date', 'rsq', 'beta', 'tstat', 'mse'])
+    fitting_stats = pd.DataFrame(columns=['date', 'rsq', 'beta', 'tstat', 'mse', 'pred_rsq', 'pred_mse'])
     for i in range(config['training_period'], len(dates)):
         date = dates[i]
         logger.info('Backtesting on %s', date)
@@ -90,13 +90,19 @@ def backtest(px, config):
         logger.debug('Fitting model')
         model, stats = fit(train, features, config)
         stats['date'] = date
-        fitting_stats = fitting_stats.append(stats, ignore_index=True)
         logger.debug('Predicting future return')
         px_i = px.loc[px.date == date, columns + features + [y_name]].copy()
         x_new = px_i[features]
         x_new = x_new.fillna(x_new.median())
+        y_new = px_i[y_name].values
         alpha = model.predict(X=x_new)
         px_i['alpha'] = alpha
+        pred_rsq = pd.DataFrame({'alpha': alpha, 'y_new': y_new}).corr().iloc[0, 1]
+        pred_resid = alpha - y_new
+        pred_mse = np.nanmean(pred_resid ** 2)
+        stats['pred_rsq'] = pred_rsq
+        stats['pred_mse'] = pred_mse
+        fitting_stats = fitting_stats.append(stats, ignore_index=True)
         btdf = btdf.append(px_i)
     logger.info('Finish backtesting')
     return btdf, fitting_stats
