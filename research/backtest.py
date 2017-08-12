@@ -19,7 +19,7 @@ research_path = os.path.join(hft_path, 'research')
 # load enriched data
 # ------------------
 
-product = 'zn'  # switch between cu and zn
+product = 'cu'  # switch between cu and zn
 with open(os.path.join(data_path, 'ticksize.json')) as ticksize_file:
     ticksize_json = json.load(ticksize_file)
 
@@ -154,9 +154,9 @@ for training_period in training_periods:
             # by_thld_table.to_csv(file_name)
 
 res_file_name = os.path.join(file_path, product + '_dynamic_holding.csv')
-fit_file_name = os.path.join(file_path, product + '_dynamic_holding_fitting.csv')
+fit_file_name = os.path.join(file_path, product + '_dynamic_holding_fitting.pkl')
 res_table.to_csv(res_file_name, index=False)
-fitting_stats.to_csv(fit_file_name, index=False)
+fitting_stats.to_pickle(fit_file_name)
 
 # exam why positive pnl
 # ---------------------
