@@ -25,12 +25,15 @@ pxall = dl.load_active_contract_multiple_dates(product, dates)
 # daily aggregate
 # we are more interested in intraday behavior
 
-daily_funs = {'price': 'last', 'volume': 'last', 'open_interest': 'sum', 'spread': 'mean', 'mid': 'mean'}
+daily_funs = {'price': 'last', 'volume': 'last', 'open_interest': 'sum', 'spread': 'mean', 'mid': 'mean',
+              'return': lambda x: np.nansum(x * x)}
 daily_px = pxall.groupby('date').agg(daily_funs)
+daily_px.rename(columns={'return': 'realized_vol'}, inplace=True)
 daily_px.volume.plot(title='volume')
 daily_px.price.plot(title='close')
 daily_px.spread.plot(title='avg spread')
 daily_px.mid.plot(title='avg mid px')
+daily_px.realized_vol.plot(title='realized volatility')
 daily_px[['price', 'mid']].plot()
 plt.plot(daily_px.price, daily_px.volume, 'o')
 plt.plot(daily_px.volume, daily_px.spread, 'o')
